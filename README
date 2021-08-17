@@ -1,14 +1,17 @@
 Dans un premier temps, on peut partir d’une zone à mapper rectangulaire définie avec X0,YO et X1,Y1 les coordonnées des coins de la zone.
 
-[map 1](images/map_1.png)
+[map_1](/img/map_1.png)
+
 
 Génération des points en 2D
 taille de la zone = X1-XO et Y1-Y0
 GSD => il faut prendre un point tout les X mètres 
 => (X1-X0)/X et (Y1-Y0)/X
+[map_2](/img/map_2.png)
 
 
 Prise en compte du MNS pour la génération des points 3D
+[map_3](/img/map_3.png)
 
 
 Génération du kml
