@@ -1,7 +1,6 @@
 Dans un premier temps, on peut partir d’une zone à mapper rectangulaire définie avec X0,YO et X1,Y1 les coordonnées des coins de la zone.
 
-
-
+[map 1](images/map_1.png)
 
 Génération des points en 2D
 taille de la zone = X1-XO et Y1-Y0
