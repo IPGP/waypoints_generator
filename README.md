@@ -1,31 +1,25 @@
 Dans un premier temps, on peut partir d’une zone à mapper rectangulaire définie avec X0,YO et X1,Y1 les coordonnées des coins de la zone.
 
 ![map_1](/img/map_1.png)
-![Singlechannel](/img/Singlechannel.png)
 
 Génération des points en 2D
 taille de la zone = X1-XO et Y1-Y0
-GSD => il faut prendre un point tout les X mètres 
+GSD => il faut prendre un point tout les X mètres
 => (X1-X0)/X et (Y1-Y0)/X
-[map_2](/img/map_2.png)
-
+![map_2](/img/map_2.png)
 
 Prise en compte du MNS pour la génération des points 3D
-[map_3](/img/map_3.png)
-
+![map_3](/img/map_3.png)
 
 Génération du kml
 
-
 les objets waypoints générés seront ajoutés à une liste
-
-
 
 generates_kml
 input
- X0,YO et X1,Y1 
+X0,YO et X1,Y1
 altitude absolue du point de décollage du drone (ex 124m)
-hauteur de survol du point (ex = 10m) ou GSD : Valeur en cm d’un pixel sur l’image finale (ex 0.82cm). 
+hauteur de survol du point (ex = 10m) ou GSD : Valeur en cm d’un pixel sur l’image finale (ex 0.82cm).
 recouvrement H et V (peut être qu’on peut partir sur le même recouvrement )
 vitesse du drone sur le parcour
 orientation de la caméra
@@ -33,8 +27,7 @@ type de caméra
 angle du parcours par rapport au nord géographique
 
 output
-tableau avec les coordonnées des waypoints et/ou fichier KML 
-
+tableau avec les coordonnées des waypoints et/ou fichier KML
 
 absolute_height
 input
@@ -46,10 +39,9 @@ référence du fichier MNS (paris.MNS)
 output
 altitude absolue de survol du point
 
-
 generates_2D_waypoints
 input
-  X0,YO et X1,Y1
+X0,YO et X1,Y1
 recouvrement H et V (peut être qu’on peut partir sur le même recouvrement )
 altitude absolue du point de décollage du drone (ex 124m)
 hauteur de survol du point (ex = 10m)
@@ -58,24 +50,21 @@ tableau avec les coordonnées des waypoints 2D
 
 generates_3D_waypoints
 input
- tableau avec les coordonnées des waypoints 2D
+tableau avec les coordonnées des waypoints 2D
 référence du fichier MNS (paris.MNS)
 altitude absolue du point de décollage du drone (ex 124m)
 hauteur de survol du point (ex = 10m)
 output
 tableau avec les coordonnées des waypoints 3D
 
-
 return_relative_height
 input
- coordonnées X,Y d’un point de l’espace (ex ​​48.84493567421954, 2.3561025820862844)
+coordonnées X,Y d’un point de l’espace (ex ​​48.84493567421954, 2.3561025820862844)
 altitude absolue du point de décollage du drone (ex 124m)
 hauteur de survol du point (ex = 10m)
 référence du fichier MNS (paris.MNS)
 output
 distance verticale entre l’altitude de décollage du drone et le point
-
-
 
 emprise_camera
 input
@@ -91,9 +80,8 @@ longitude 48.84482270388685
 distance_x (10m)
 distance_y (10m)
 output
-latitude de  latitude + distance
+latitude de latitude + distance
 longitude de longitude+ distance
-
 
 return_altitude_from_gsd
 input
@@ -101,9 +89,6 @@ référence de caméra. peut être un indice dans un tableau avec les noms des c
 GSD : Valeur en cm d’un pixel sur l’image finale (ex 0.82cm)
 output
 altitude de survol pour avoir le GSD avec la caméra sélectionnée
-
-
-
 
 Références
 https://www.jpl.nasa.gov/news/meet-the-open-source-software-powering-nasas-ingenuity-mars-helicopter
