@@ -92,6 +92,12 @@ les objets waypoints générés seront ajoutés à une liste
 
 
 Références
+https://link.springer.com/article/10.1007/s10846-016-0348-x
+https://www.mdpi.com/2504-446X/3/1/4/pdf-vor
+
 https://www.jpl.nasa.gov/news/meet-the-open-source-software-powering-nasas-ingenuity-mars-helicopter
 https://www.hindawi.com/journals/complexity/2018/6879419/
 https://sci-hub.do/https://arc.aiaa.org/doi/pdf/10.2514/6.2004-6227
+https://en.wikipedia.org/wiki/Mesh_generation
+https://www.mdpi.com/2220-9964/10/5/285/pdf
+https://www.mdpi.com/2076-3417/9/7/1470/pdf-vor
