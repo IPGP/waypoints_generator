@@ -15,80 +15,78 @@ Génération du kml
 
 les objets waypoints générés seront ajoutés à une liste
 
-generates_kml
-input
-X0,YO et X1,Y1
-altitude absolue du point de décollage du drone (ex 124m)
-hauteur de survol du point (ex = 10m) ou GSD : Valeur en cm d’un pixel sur l’image finale (ex 0.82cm).
-recouvrement H et V (peut être qu’on peut partir sur le même recouvrement )
-vitesse du drone sur le parcour
-orientation de la caméra
-type de caméra
-angle du parcours par rapport au nord géographique
+- [ ] generates_kml
+      ..⋅\*input
+      X0,YO et X1,Y1
+      altitude absolue du point de décollage du drone (ex 124m)
+      hauteur de survol du point (ex = 10m) ou GSD : Valeur en cm d’un pixel sur l’image finale (ex 0.82cm).
+      recouvrement H et V (peut être qu’on peut partir sur le même recouvrement )
+      vitesse du drone sur le parcour
+      orientation de la caméra
+      type de caméra
+      angle du parcours par rapport au nord géographique
+      output
+      tableau avec les coordonnées des waypoints et/ou fichier KML
 
-output
-tableau avec les coordonnées des waypoints et/ou fichier KML
+- [ ] absolute_height
+      ..⋅\*input
+      coordonnées d’un point X,Y
+      altitude absolue du point de décollage du drone (ex 124m)
+      GSD : Valeur en cm d’un pixel sur l’image finale (ex 0.82cm) ou hauteur de survol du point (ex = 10m)
+      référence du fichier MNS (paris.MNS)
+      output
+      altitude absolue de survol du point
 
-absolute_height
-input
-coordonnées d’un point X,Y
-altitude absolue du point de décollage du drone (ex 124m)
-GSD : Valeur en cm d’un pixel sur l’image finale (ex 0.82cm) ou hauteur de survol du point (ex = 10m)
-référence du fichier MNS (paris.MNS)
+- [ ] generates_2D_waypoints
+      ..⋅\*input
+      X0,YO et X1,Y1
+      recouvrement H et V (peut être qu’on peut partir sur le même recouvrement )
+      altitude absolue du point de décollage du drone (ex 124m)
+      hauteur de survol du point (ex = 10m)
+      output
+      tableau avec les coordonnées des waypoints 2D
 
-output
-altitude absolue de survol du point
+- [ ] generates_3D_waypoints
+      ..⋅*input
+      tableau avec les coordonnées des waypoints 2D
+      référence du fichier MNS (paris.MNS)
+      altitude absolue du point de décollage du drone (ex 124m)
+      hauteur de survol du point (ex = 10m)
+      ..⋅*output
+      tableau avec les coordonnées des waypoints 3D
 
-generates_2D_waypoints
-input
-X0,YO et X1,Y1
-recouvrement H et V (peut être qu’on peut partir sur le même recouvrement )
-altitude absolue du point de décollage du drone (ex 124m)
-hauteur de survol du point (ex = 10m)
-output
-tableau avec les coordonnées des waypoints 2D
+- [ ] return_relative_height
+      ..⋅*input
+      coordonnées X,Y d’un point de l’espace (ex ​​48.84493567421954, 2.3561025820862844)
+      altitude absolue du point de décollage du drone (ex 124m)
+      hauteur de survol du point (ex = 10m)
+      référence du fichier MNS (paris.MNS)
+      ..⋅*output
+      distance verticale entre l’altitude de décollage du drone et le point
 
-generates_3D_waypoints
-input
-tableau avec les coordonnées des waypoints 2D
-référence du fichier MNS (paris.MNS)
-altitude absolue du point de décollage du drone (ex 124m)
-hauteur de survol du point (ex = 10m)
-output
-tableau avec les coordonnées des waypoints 3D
+- [ ] emprise_camera
+      ..⋅*input
+      référence de caméra. peut être un indice dans un tableau avec les noms des caméras ? (ex = X7)
+      hauteur de survol
+      ..⋅*output
+      largeur et longeur en mètres de la photo
 
-return_relative_height
-input
-coordonnées X,Y d’un point de l’espace (ex ​​48.84493567421954, 2.3561025820862844)
-altitude absolue du point de décollage du drone (ex 124m)
-hauteur de survol du point (ex = 10m)
-référence du fichier MNS (paris.MNS)
-output
-distance verticale entre l’altitude de décollage du drone et le point
+- [x] latitude_longitude_plus_distance
+      ..⋅*input
+      latitude 48.84482270388685
+      longitude 48.84482270388685
+      distance_x (10m)
+      distance_y (10m)
+      ..⋅*output
+      latitude de latitude + distance
+      longitude de longitude+ distance
 
-emprise_camera
-input
-référence de caméra. peut être un indice dans un tableau avec les noms des caméras ? (ex = X7)
-hauteur de survol
-output
-largeur et longeur en mètres de la photo
-
-latitude_longitude_plus_distance
-input
-latitude 48.84482270388685
-longitude 48.84482270388685
-distance_x (10m)
-distance_y (10m)
-output
-latitude de latitude + distance
-longitude de longitude+ distance
-
-return_altitude_from_gsd
-input
-référence de caméra. peut être un indice dans un tableau avec les noms des caméras ? (ex = X7)
-GSD : Valeur en cm d’un pixel sur l’image finale (ex 0.82cm)
-output
-altitude de survol pour avoir le GSD avec la caméra sélectionnée
+- [ ] return_altitude_from_gsd
+      ..⋅*input
+      référence de caméra. peut être un indice dans un tableau avec les noms des caméras ? (ex = X7)
+      GSD : Valeur en cm d’un pixel sur l’image finale (ex 0.82cm)
+      ⋅.*output
+      altitude de survol pour avoir le GSD avec la caméra sélectionnée
 
 Références
 https://www.jpl.nasa.gov/news/meet-the-open-source-software-powering-nasas-ingenuity-mars-helicopter
