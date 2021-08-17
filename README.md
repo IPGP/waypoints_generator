@@ -6,10 +6,10 @@ Génération des points en 2D
 taille de la zone = X1-XO et Y1-Y0
 GSD => il faut prendre un point tout les X mètres
 => (X1-X0)/X et (Y1-Y0)/X
-![map_2](/img/map_2.png)
+![map_2](/img/map_2.jpg)
 
 Prise en compte du MNS pour la génération des points 3D
-![map_3](/img/map_3.png)
+![map_3](/img/map_3.jpg)
 
 Génération du kml
 
