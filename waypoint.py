@@ -1,26 +1,27 @@
 from math import atan, degrees, sqrt
-import folium
-from gpxplotter import create_folium_map
 from geopy import Point, distance
 import geopy
+from waypointsmap import WaypointMap
+import sys
 
 
 class Waypoint:
     "Waypoint class"
 
-    def __init__(self, latitude, longitude):
+    def __init__(self, latitude, longitude, altitude_absolue_sol=None, altitude_relative_drone=None,
+                 hauteur_sol=None, emprise_laterale=100, emprise_longitudinale=50, direction=0, emprise=None, name=""):
         self.latitude = latitude
         self.longitude = longitude
-        self.altitude_aboslue_sol = None
-        self.altitude_relative_drone = None
-        self.hauteur_sol = None
-        self.emprise_laterale = 100  # en mètres
-        self.emprise_longitudinale = 50  # en mètres
-        self.direction = 30
-        self.emprise = None
-        self.name = "IPGP"
+        self.altitude_absolue_sol = altitude_absolue_sol
+        self.altitude_relative_drone = altitude_relative_drone
+        self.hauteur_sol = hauteur_sol
+        self.emprise_laterale = emprise_laterale  # en mètres
+        self.emprise_longitudinale = emprise_longitudinale  # en mètres
+        self.direction = direction
+        self.emprise = emprise
+        self.name = name
 
-    def emprise_coordinates(self):
+    def compute_footprint(self):
         """Détermine les coordonnées de l'emprise au sol à partir du point central
                    5 | 5
         x3,y3 ---------------- x0,y0
@@ -48,12 +49,12 @@ class Waypoint:
 
         tmp = dist.destination(point=Point(
             self.latitude, self.longitude), bearing=180-angle + self.direction)
-        #print("angle "+str(180-angle + self.direction))
+        # print("angle "+str(180-angle + self.direction))
         x1, y1, *_ = tmp
 
         tmp = dist.destination(point=Point(
             self.latitude, self.longitude), bearing=180+angle + self.direction)
-        #print("angle "+str(180+angle + self.direction))
+        # print("angle "+str(180+angle + self.direction))
 
         x2, y2, *_ = tmp
         tmp = dist.destination(point=Point(
@@ -68,92 +69,40 @@ class Waypoint:
         print(x3, " ", y3)
 
         self.emprise = [(x0, y0), (x1, y1), (x2, y2), (x3, y3)]
-        return self.emprise
 
 
-LAT = 48.84482270388685
-LON = 2.3562098704389163
+def main(args):
 
-IPGP = Waypoint(LAT, LON)
-emprise_IPGP = IPGP.emprise_coordinates()
-the_map = create_folium_map(zoom_min=0, max_zoom=18, zoom_start=10)
+    LAT = 48.84482270388685
+    LON = 2.3562098704389163
 
-# Add custom base maps to folium
-basemaps = {
-    'Google Maps': folium.TileLayer(
-        tiles='https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-        attr='Google',
-        name='Google Maps',
-        overlay=False,
-        control=True
-    ),
-    'Google Satellite': folium.TileLayer(
-        tiles='https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-        attr='Google',
-        name='Google Satellite',
-        overlay=True,
-        control=True
-    ),
-    'Google Terrain': folium.TileLayer(
-        tiles='https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
-        attr='Google',
-        name='Google Terrain',
-        overlay=True,
-        control=True
-    ),
-    'Google Satellite Hybrid': folium.TileLayer(
-        tiles='https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-        attr='Google',
-        name='Google Satellite',
-        overlay=True,
-        control=True
-    ),
-    'Esri Satellite': folium.TileLayer(
-        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        attr='Esri',
-        name='Esri Satellite',
-        overlay=True,
-        control=True
-    )
-}
+    X0 = 48.84643250706535
+    Y0 = 2.3527444567404943
+    X1 = 48.84350234422499
+    Y1 = 2.358956452357875
 
-# Add custom basemaps
-basemaps['Google Maps'].add_to(the_map)
-basemaps['Google Satellite'].add_to(the_map)
-basemaps['Google Terrain'].add_to(the_map)
-basemaps['Google Satellite Hybrid'].add_to(the_map)
-basemaps['Esri Satellite'].add_to(the_map)
+    the_map = WaypointMap()
+    the_map.add_area_of_interest([(X0, Y0),  (X0, Y1), (X1, Y1), (X1, Y0)])
 
-tiles_maps = ['openstreetmap', 'Stamen Terrain']
-#tiles_maps = ['openstreetmap']
-#tiles_maps = []
-# tiles_maps=[ 'openstreetmap',''Cartodb Positron',
-# 'Stamen Terrain','Stamen Toner','Stamen Watercolor']
+    IPGP = waypoint(latitude=LAT,  longitude=LON, name="Center", direction=30)
 
-for tile in tiles_maps:
-    folium.TileLayer(tile).add_to(the_map)
-folium.Marker(
-    location=[LAT, LON],
-    # popup=image.filename,
-    # color=color_image,
-    #                icon=folium.Icon(color=color_image,icon='fas fa-camera')
-    icon=folium.Icon(color='blue', icon='fa-map-pin')).add_to(the_map)
+    IPGP.compute_footprint()
+    the_map.add_wapypoint(
+        location=[LAT, LON], color='blue', popup_text="", icon='fa-map-pin')
 
-folium.Marker(location=emprise_IPGP[0], popup='X0', icon=folium.Icon(
-    color='red', icon='fa-map-pin')).add_to(the_map)
-folium.Marker(location=emprise_IPGP[1], popup='X1', icon=folium.Icon(
-    color='green', icon='fa-map-pin')).add_to(the_map)
-folium.Marker(location=emprise_IPGP[2], popup='X2', icon=folium.Icon(
-    color='green', icon='fa-map-pin')).add_to(the_map)
-folium.Marker(location=emprise_IPGP[3], popup='X3', icon=folium.Icon(
-    color='red', icon='fa-map-pin')).add_to(the_map)
+    the_map.add_wapypoint(
+        location=IPGP.emprise[0], color='red', popup_text="X0", icon='fa-map-pin')
+    the_map.add_wapypoint(
+        location=IPGP.emprise[1], color='green', popup_text="X1", icon='fa-map-pin')
+    the_map.add_wapypoint(
+        location=IPGP.emprise[2], color='green', popup_text="X2", icon='fa-map-pin')
+    the_map.add_wapypoint(
+        location=IPGP.emprise[3], color='red', popup_text="X3", icon='fa-map-pin')
 
-the_map.add_child(folium.vector_layers.Polygon(locations=emprise_IPGP, color='#ff7800', fill=True, fill_color='#ffff00', fill_opacity=0.2,
-                                               weight=2, popup=(folium.Popup(IPGP.name))))
-
-boundary = the_map.get_bounds()
-the_map.fit_bounds(boundary, padding=(5, 5))
-folium.LayerControl(sortLayers=True).add_to(the_map)
+    the_map.add_polygon(locations=IPGP.emprise, color='#ff7800', fill=True,
+                        fill_color='#ffff00', fill_opacity=0.2, weight=2, popup=IPGP.name)
+    the_map.export_to_file()
 
 
-the_map.save('./carte.html')
+if __name__ == '__main__':
+    main(sys.argv)
