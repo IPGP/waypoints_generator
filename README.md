@@ -77,8 +77,8 @@ les objets waypoints générés seront ajoutés à une liste
       -  distance_x (10m)
       -  distance_y (10m)
   - Output
-      -  latitude de latitude + distance
-      -  longitude de longitude+ distance
+      -  latitude + distance_x
+      -  longitude + distance_y
 
 - [ ] **return_altitude_from_gsd**
   -  Input
@@ -86,7 +86,7 @@ les objets waypoints générés seront ajoutés à une liste
       -  GSD : Valeur en cm d’un pixel sur l’image finale (ex 0.82cm)
   - Output
       -  altitude de survol pour avoir le GSD avec la caméra sélectionnée
-- [X] **Generate_mission_map** : Generate a map with UAV poistions, pictures footprint, waypoints, path
+- [X] **Generate_mission_map** : Generate a map with UAV positions, pictures footprint, waypoints, path
 -  Input
       -  array of waypoints  
 
