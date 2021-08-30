@@ -42,6 +42,7 @@ les objets waypoints générés seront ajoutés à une liste
       -  recouvrement H et V (peut être qu’on peut partir sur le même recouvrement )
       -  altitude absolue du point de décollage du drone (ex 124m)
       -  hauteur de survol du point (ex = 10m)
+      -  Methode de génération (normal, escargot, ..)
   - Output
       -  tableau avec les coordonnées des waypoints 2D
 
