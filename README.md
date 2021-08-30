@@ -36,7 +36,7 @@ les objets waypoints générés seront ajoutés à une liste
   - Output
       - altitude absolue de survol du point
 
-- [ ] **generates_2D_waypoints**
+- [ ] **PathPlanning_2D**
   -  Input
       -  X0,YO et X1,Y1
       -  recouvrement H et V (peut être qu’on peut partir sur le même recouvrement )
