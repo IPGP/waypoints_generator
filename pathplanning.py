@@ -1,16 +1,25 @@
-import waypoint
-from geopy import Point, distance
-import geopy
 import sys
-from geopy.distance import geodesic
+
+import geopy
+from geopy.units import meters
 import pyproj
-from math import degrees, acos
+from geopy import Point, distance
+from geopy.distance import geodesic
+from geopy import Point, distance
+
+import waypoint
+from utils import getAngle, getBearing
+from waypoint import WayPoint
+from waypointsmap import WaypointMap
+
+# https://nbviewer.jupyter.org/github/python-visualization/folium/blob/master/examples/Rotate_icon.ipynb
+# rotation des icones
 
 
 class PathPlanning:
     "PathPlanning class"
 
-    def __init__(self, A,B,C,D ,emprise_laterale, emprise_longitudinale):
+    def __init__(self, points, orientation, emprise_laterale, emprise_longitudinale):
         """
         A(Xa, Ya) ----------------- B(Xb, Yb)
         |                        |
@@ -21,15 +30,15 @@ class PathPlanning:
         |                        |
         D(Xd, Yd) ----------------- C(Xc, Yc)
         """
-        #c^2=a^2+b^2-2*ab*cos(C)
+        # c^2=a^2+b^2-2*ab*cos(C)
 
-       #self.AOI = [(X0, Y0),  (X0, Y1), (X1, Y1), (X1, Y0)]
-        self.A=A
-        self.B=B
-        self.C=C
-        self.D=D
+        # On rajoute le premier point a la fin pour plus de simplicité
+        self.points = points.append(points[0])
 
-        self.best_orientation = None
+        self.start_point = self.points[0]
+        self.waypoint_list = []
+
+        self.orientation = orientation
 
         self.emprise_laterale = emprise_laterale  # en mètres
         self.emprise_longitudinale = emprise_longitudinale  # en mètres
@@ -37,62 +46,99 @@ class PathPlanning:
        # vertical_distance = geodesic(self.AOI[0], self.AOI[1]).km
        # horizontal_distance = geodesic(self.AOI[0], self.AOI[2]).km
 
-    def GeneratePath(self,style):
+    def generate_path(self, style):
+        """choix du syle du path"""
         if style == "snail":
-            self.GeneratePathSnail()
+            self.generate_path_snail()
         elif style == "normal":
-            self.GeneratePath()
+            self.generate_path_normal()
 
-    def GeneratePathSnail(self):
-        pass
-    
-    def GeneratePathNormal(self):
-        pass
+    def generate_path_snail_0(self):
+        """ On doit trouver dans quel direction démarrer """
+
+        distance_a_couvrir = geodesic(self.points[0], self.points[1])*1000
+        distance_parcourue = 0
+        print('distance_a_couvrir {} distance_parcourue {}'.format(
+            distance_a_couvrir, distance_parcourue))
+
+        increment = self.emprise_longitudinale
+        direction = getBearing(self.points[0], self.points[1])
+        self.waypoint_list.append(WayPoint(
+            self.start_point, direction, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+
+        dist = geopy.distance.distance(meters=increment)
+        tmp_point = [self.start_point[0], self.start_point[1]]
+
+        while distance_parcourue <= distance_a_couvrir:
+
+            tmp = dist.destination(point=Point(tmp_point), bearing=direction)
+            self.waypoint_list.append(
+                WayPoint([tmp.latitude, tmp.longitude], direction, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+
+            tmp_point = [tmp.latitude, tmp.longitude]
+            distance_parcourue += increment
+            print('distance_a_couvrir {} distance_parcourue {}'.format(
+                distance_a_couvrir, distance_parcourue))
+
+    def generate_path_normal(self):
+        """ path type allez-retour"""
 
 
-def getAngle(A,B,C):
-    "return angle between A,B and C in degrees"
-    AB=geodesic(A,B).m
-    BC=geodesic(B,C).m
-    CA=geodesic(A,C).m
-    return degrees(acos((AB*AB+BC*BC-CA*CA)/(2*AB*BC)))
-        
-
-
-    
 def main(args):
-
-    LAT = 48.84482270388685
-    LON = 2.3562098704389163
-
-#    X0 = 48.84643250706535
-#    Y0 = 2.3527444567404943
+    """la fonction main"""
 
     A = (48.844781966005414, 2.354806246580006)
     B = (48.845476490908986, 2.3559582742434224)
     C = (48.844800522139515, 2.356945151087957)
-    D = (48.84395753653702, 2.355015706155173)
-#    X1 = 48.84350234422499
+    D = (48.84415592294359, 2.3565687535257593)
+    E = (48.84395753653702, 2.355015706155173)
 
+    points = [E, A, B, C, D]
+    points = [A, B, C, D]
+
+    # Calcul des angles entre tous les points
 
     # Calcul des distances
-    AB=geodesic(A,B).m
-    BC=geodesic(B,C).m
-    CD=geodesic(C,D).m
-    DA=geodesic(D,A).m
-    BD=geodesic(B,D).m
-    AC=geodesic(A,C).m
+    AB = geodesic(A, B).m
+    BC = geodesic(B, C).m
+    CD = geodesic(C, D).m
+    DA = geodesic(D, A).m
+    BD = geodesic(B, D).m
+    AC = geodesic(A, C).m
 
     # Calcul des angles
-    angle_ABC=getAngle(A,B,C)
-    angle_BCD=getAngle(B,C,D)
-    angle_CDA=getAngle(C,D,A)
-    angle_DAB=getAngle(D,A,B)
+    angle_ABC = getAngle(A, B, C)
+    angle_BCD = getAngle(B, C, D)
+    angle_CDE = getAngle(C, D, E)
+    angle_DEA = getAngle(D, E, A)
+    angle_EAB = getAngle(E, A, B)
 
-    pp = PathPlanning(A,B, 100, 50)
-    pp.find_best_orientation()
-    pp.GeneratePath("snail")
-#    pp.GeneratePath("snail")
+    orientation = angle_EAB
+    emprise_laterale = 30
+    emprise_longitudinale = 15
+
+    pp = PathPlanning(points, orientation, emprise_laterale,
+                      emprise_longitudinale)
+    # pp.find_best_orientation()
+    # pp.GeneratePath("snail")
+    pp.generate_path("snail")
+
+    the_map = WaypointMap()
+
+    the_map.add_polygon(locations=points, color='#ff7800', fill=True,
+                        fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
+
+    for wp in pp.waypoint_list:
+        the_map.add_waypoint(wp)
+    # lat = 48.84482270388685
+    # lon = 2.3562098704389163
+    # loc_IPGP = [lat, lon]
+    # IPGP = WayPoint(loc_IPGP, orientation, emprise_laterale,
+    #                 emprise_longitudinale)
+
+    # the_map.add_waypoint(IPGP)
+
+    the_map.export_to_file()
 
 
 if __name__ == '__main__':
