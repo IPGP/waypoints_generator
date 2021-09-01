@@ -59,4 +59,4 @@ class Interpolate(object):
         """
         
         if self._interpol is not None:
-            return self._interpol.ev(x, y)
+            return self._interpol.ev(y, x)
