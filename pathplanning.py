@@ -20,31 +20,18 @@ class PathPlanning:
     "PathPlanning class"
 
     def __init__(self, points, orientation, emprise_laterale, emprise_longitudinale):
-        """
-        A(Xa, Ya) ----------------- B(Xb, Yb)
-        |                        |
-        |                        |
-        |                        |
-        |                        |
-        |                        |
-        |                        |
-        D(Xd, Yd) ----------------- C(Xc, Yc)
-        """
-        # c^2=a^2+b^2-2*ab*cos(C)
+        """Pathplanning generates waypoints """
 
         # On rajoute le premier point a la fin pour plus de simplicité
-        self.points = points.append(points[0])
+        self.points = points
+        self.points.append(points[0])
 
-        self.start_point = self.points[0]
         self.waypoint_list = []
 
         self.orientation = orientation
 
         self.emprise_laterale = emprise_laterale  # en mètres
         self.emprise_longitudinale = emprise_longitudinale  # en mètres
-
-       # vertical_distance = geodesic(self.AOI[0], self.AOI[1]).km
-       # horizontal_distance = geodesic(self.AOI[0], self.AOI[2]).km
 
     def generate_path(self, style):
         """choix du syle du path"""
@@ -56,18 +43,18 @@ class PathPlanning:
     def generate_path_snail_0(self):
         """ On doit trouver dans quel direction démarrer """
 
-        distance_a_couvrir = geodesic(self.points[0], self.points[1])*1000
+        distance_a_couvrir = geodesic(self.points[0], self.points[1]).meters
         distance_parcourue = 0
-        print('distance_a_couvrir {} distance_parcourue {}'.format(
+        print('distance_a_couvrir {}m distance_parcourue {}m'.format(
             distance_a_couvrir, distance_parcourue))
 
         increment = self.emprise_longitudinale
         direction = getBearing(self.points[0], self.points[1])
         self.waypoint_list.append(WayPoint(
-            self.start_point, direction, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+            self.points[0], direction, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
 
         dist = geopy.distance.distance(meters=increment)
-        tmp_point = [self.start_point[0], self.start_point[1]]
+        tmp_point = [self.points[0][0], self.points[0][1]]
 
         while distance_parcourue <= distance_a_couvrir:
 
@@ -77,11 +64,15 @@ class PathPlanning:
 
             tmp_point = [tmp.latitude, tmp.longitude]
             distance_parcourue += increment
-            print('distance_a_couvrir {} distance_parcourue {}'.format(
+            print('distance_a_couvrir {}m distance_parcourue {}m'.format(
                 distance_a_couvrir, distance_parcourue))
 
     def generate_path_normal(self):
         """ path type allez-retour"""
+
+    def export_to_kml(self):
+        """ Export waypoints to kml for DJI UAV"""
+        pass
 
 
 def main(args):
@@ -94,7 +85,7 @@ def main(args):
     E = (48.84395753653702, 2.355015706155173)
 
     points = [E, A, B, C, D]
-    points = [A, B, C, D]
+#    points = [A, B, C, D]
 
     # Calcul des angles entre tous les points
 
@@ -117,28 +108,25 @@ def main(args):
     emprise_laterale = 30
     emprise_longitudinale = 15
 
-    pp = PathPlanning(points, orientation, emprise_laterale,
-                      emprise_longitudinale)
+    Path_generator = PathPlanning(points, orientation, emprise_laterale,
+                                  emprise_longitudinale)
     # pp.find_best_orientation()
     # pp.GeneratePath("snail")
-    pp.generate_path("snail")
+    Path_generator.generate_path_snail_0()
 
     the_map = WaypointMap()
 
     the_map.add_polygon(locations=points, color='#ff7800', fill=True,
                         fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
 
-    for wp in pp.waypoint_list:
+    # On ajoute les waypoint qui ont été trouvés a la carte
+    for wp in Path_generator.waypoint_list:
         the_map.add_waypoint(wp)
-    # lat = 48.84482270388685
-    # lon = 2.3562098704389163
-    # loc_IPGP = [lat, lon]
-    # IPGP = WayPoint(loc_IPGP, orientation, emprise_laterale,
-    #                 emprise_longitudinale)
 
-    # the_map.add_waypoint(IPGP)
-
+    # Exportation de la carte
     the_map.export_to_file()
+
+    Path_generator.export_to_kml()
 
 
 if __name__ == '__main__':

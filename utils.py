@@ -4,7 +4,7 @@ from geographiclib.geodesic import Geodesic
 
 
 def getAngle(A, B, C):
-    "return angle between A,B and C in degrees"
+    "return angle en degrees between A,B and C in degrees"
     AB = geodesic(A, B).m
     BC = geodesic(B, C).m
     CA = geodesic(A, C).m
@@ -13,6 +13,7 @@ def getAngle(A, B, C):
 
 
 def getBearing(A, B):
+    "return bearing en degrees between A and B"
     return Geodesic.WGS84.Inverse(A[0], A[1], B[0], B[1])['azi1']
 
 
