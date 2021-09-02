@@ -1,3 +1,5 @@
+#!/usr/bin/python
+# -*- coding:utf-8 -*-
 from geopy.distance import geodesic
 from math import degrees, acos
 from geographiclib.geodesic import Geodesic

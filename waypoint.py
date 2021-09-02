@@ -1,3 +1,5 @@
+#!/usr/bin/python
+# -*- coding:utf-8 -*-
 from math import atan, degrees, sqrt
 import folium
 from gpxplotter import create_folium_map

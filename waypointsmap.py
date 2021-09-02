@@ -1,3 +1,5 @@
+#!/usr/bin/python
+# -*- coding:utf-8 -*-
 import folium
 from gpxplotter import create_folium_map
 from waypoint import WayPoint
@@ -68,26 +70,28 @@ class WaypointMap:
         for tile in tiles_maps:
             folium.TileLayer(tile).add_to(self.the_map)
 
-    def add_waypoint(self, waypoint, color='blue', popup_text=""):
-        # print(waypoint.orientation)
+    def add_waypoint(self, waypoint, markers=False, color='blue', popup_text=""):
+        # Le point central du waypoint avec une fleche pour sa direction
         folium.Marker(location=waypoint.location, popup=popup_text, icon=folium.Icon(
             color='beige', angle=int(waypoint.orientation), icon='arrow-up', prefix='fa')).add_to(self.the_map)
-
-        folium.Marker(location=waypoint.X0, popup='X0', icon=folium.Icon(
-            color='red', icon='fa-map-pin')).add_to(self.the_map)
-
-        folium.Marker(location=waypoint.X1, popup='X0', icon=folium.Icon(
-            color='green', icon='fa-map-pin')).add_to(self.the_map)
-
-        folium.Marker(location=waypoint.X2, popup='X0', icon=folium.Icon(
-            color='green', icon='fa-map-pin')).add_to(self.the_map)
-
-        folium.Marker(location=waypoint.X3, popup='X0', icon=folium.Icon(
-            color='red', icon='fa-map-pin')).add_to(self.the_map)
 
         self.the_map.add_child(folium.vector_layers.Polygon(locations=[waypoint.X0, waypoint.X1, waypoint.X2, waypoint.X3],
                                                             color='blue', fill=True,
                                                             fill_color='blue', fill_opacity=0.3, weight=2, popup=""))
+
+        # Les markers de l'emprise
+        if markers:
+            folium.Marker(location=waypoint.X0, popup='X0', icon=folium.Icon(
+                color='red', icon='fa-map-pin')).add_to(self.the_map)
+
+            folium.Marker(location=waypoint.X1, popup='X0', icon=folium.Icon(
+                color='green', icon='fa-map-pin')).add_to(self.the_map)
+
+            folium.Marker(location=waypoint.X2, popup='X0', icon=folium.Icon(
+                color='green', icon='fa-map-pin')).add_to(self.the_map)
+
+            folium.Marker(location=waypoint.X3, popup='X0', icon=folium.Icon(
+                color='red', icon='fa-map-pin')).add_to(self.the_map)
 
     def add_polygon(self, locations, color, fill_color, fill_opacity, weight, popup, fill=True):
         """ Plot shape of the mapping area with dots"""
