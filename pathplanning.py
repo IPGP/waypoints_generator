@@ -1,5 +1,6 @@
+#!/usr/bin/python
+# -*- coding:utf-8 -*-
 import sys
-
 import geopy
 from geopy.units import meters
 import pyproj
@@ -86,8 +87,6 @@ def main(args):
 
     points = [E, A, B, C, D]
 #    points = [A, B, C, D]
-
-    # Calcul des angles entre tous les points
 
     # Calcul des distances
     AB = geodesic(A, B).m
