@@ -12,6 +12,7 @@ class WaypointMap:
     "WaypointMap class to plot waypoints of a mission in a nice map"
 
     def __init__(self):
+        self.waypoint_nb = 0
         self.the_map = create_folium_map(
             zoom_min=0, max_zoom=18, zoom_start=10)
 
@@ -72,8 +73,13 @@ class WaypointMap:
 
     def add_waypoint(self, waypoint, markers=False, color='blue', popup_text=""):
         # Le point central du waypoint avec une fleche pour sa direction
+        self.waypoint_nb += 1
+        if waypoint.orientation < 0:
+            orientation = waypoint.orientation+360
+        else:
+            orientation = waypoint.orientation
         folium.Marker(location=waypoint.location, popup=popup_text, icon=folium.Icon(
-            color='beige', angle=int(waypoint.orientation), icon='arrow-up', prefix='fa')).add_to(self.the_map)
+            color='beige', angle=int(orientation), icon='arrow-up', prefix='fa')).add_to(self.the_map)
 
         self.the_map.add_child(folium.vector_layers.Polygon(locations=[waypoint.X0, waypoint.X1, waypoint.X2, waypoint.X3],
                                                             color='blue', fill=True,
@@ -108,6 +114,8 @@ class WaypointMap:
                                                             fill_color='#34e5eb', fill_opacity=0.3, weight=2, popup=""))
 
     def export_to_file(self, filename='./carte.html'):
+        """Export waypoint map to file"""
+        print('{} waypoint exportés'.format(self.waypoint_nb))
         self.the_map.fit_bounds(self.the_map.get_bounds(), padding=(5, 5))
         folium.LayerControl(sortLayers=True).add_to(self.the_map)
         self.the_map.save(filename)

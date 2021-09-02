@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
 import sys
+from branca.utilities import none_min
 import geopy
 from geopy.units import meters
 import pyproj
@@ -15,6 +16,21 @@ from waypointsmap import WaypointMap
 
 # https://nbviewer.jupyter.org/github/python-visualization/folium/blob/master/examples/Rotate_icon.ipynb
 # rotation des icones
+
+
+class Corner:
+    def __init__(self, coordonnes):
+        self.coordonnes = coordonnes
+        self.distance_to_next_corner
+    pass
+
+    @property
+    def coordonnes(self):
+        return self._coordonnes
+
+    @coordonnes.setter
+    def coordonnes(self, coordonnes):
+        self._coordonnes = coordonnes
 
 
 class PathPlanning:
@@ -42,31 +58,36 @@ class PathPlanning:
             self.generate_path_normal()
 
     def generate_path_snail_0(self):
-        """ On doit trouver dans quel direction démarrer """
+        """ Crée un parcours de type escargot """
 
-        distance_a_couvrir = geodesic(self.points[0], self.points[1]).meters
-        distance_parcourue = 0
-        print('distance_a_couvrir {}m distance_parcourue {}m'.format(
-            distance_a_couvrir, distance_parcourue))
+        # On parcours tous les points. Le dernier est en fait une copie du 1er pour plus de simplicité.
+        # Il faut s'arreter à l'avant dernier point
+        for i in range(len(self.points)-1):
+            distance_a_couvrir = geodesic(
+                self.points[i], self.points[i+1]).meters
+            distance_parcourue = 0
+            increment = self.emprise_longitudinale*0.5
+            direction = getBearing(self.points[i], self.points[i+1])
+            print('direction {} distance_a_couvrir {}m distance_parcourue {}m'.format(direction,
+                                                                                      distance_a_couvrir, distance_parcourue))
 
-        increment = self.emprise_longitudinale
-        direction = getBearing(self.points[0], self.points[1])
-        self.waypoint_list.append(WayPoint(
-            self.points[0], direction, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+            # self.waypoint_list.append(WayPoint(
+            #    self.points[0], direction, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
 
-        dist = geopy.distance.distance(meters=increment)
-        tmp_point = [self.points[0][0], self.points[0][1]]
+            dist = geopy.distance.distance(meters=increment)
+            tmp_point = [self.points[i][0], self.points[i][1]]
 
-        while distance_parcourue <= distance_a_couvrir:
+            while distance_parcourue <= distance_a_couvrir:
 
-            tmp = dist.destination(point=Point(tmp_point), bearing=direction)
-            self.waypoint_list.append(
-                WayPoint([tmp.latitude, tmp.longitude], direction, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                tmp = dist.destination(point=Point(
+                    tmp_point), bearing=direction)
+                self.waypoint_list.append(
+                    WayPoint([tmp.latitude, tmp.longitude], direction, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
 
-            tmp_point = [tmp.latitude, tmp.longitude]
-            distance_parcourue += increment
-            print('distance_a_couvrir {}m distance_parcourue {}m'.format(
-                distance_a_couvrir, distance_parcourue))
+                tmp_point = [tmp.latitude, tmp.longitude]
+                distance_parcourue += increment
+                print('distance_a_couvrir {}m distance_parcourue {}m'.format(
+                    distance_a_couvrir, distance_parcourue))
 
     def generate_path_normal(self):
         """ path type allez-retour"""
