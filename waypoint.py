@@ -6,6 +6,7 @@ from gpxplotter import create_folium_map
 from geopy import Point, distance
 import geopy
 import sys
+from utils import *
 
 
 class WayPoint:
@@ -41,38 +42,46 @@ class WayPoint:
 
         angle = degrees(atan(self.delta_lat/self.delta_long))
 
-        dist = geopy.distance.distance(kilometers=(
-            sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long)/1000))
+        #dist = geopy.distance.distance(kilometers=(
+        #    sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long)/1000))
 
-        tmp = dist.destination(point=Point(
-            self.latitude, self.longitude), bearing=angle + self.orientation)
+        #tmp = dist.destination(point=Point(
+        #    self.latitude, self.longitude), bearing=angle + self.orientation)
 #
         #print("angle "+str(angle + self.orientation))
-        self.X0 = [tmp.latitude, tmp.longitude]
-
-        tmp = dist.destination(point=Point(
-            self.latitude, self.longitude), bearing=180-angle + self.orientation)
+        #self.X0 = [tmp.latitude, tmp.longitude]
+        
+        self.X0 = point_distance_bearing_to_new_point(point= [self.latitude, self.longitude],
+        distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=angle + self.orientation)
+        
+        #tmp = dist.destination(point=Point(
+        #    self.latitude, self.longitude), bearing=180-angle + self.orientation)
 
         #print("angle "+str(180-angle + self.orientation))
-        self.X1 = [tmp.latitude, tmp.longitude]
+        self.X1 = point_distance_bearing_to_new_point(point= [self.latitude, self.longitude],
+        distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=180-angle + self.orientation)
 
-        tmp = dist.destination(point=Point(
-            self.latitude, self.longitude), bearing=180+angle + self.orientation)
+     #   tmp = dist.destination(point=Point(
+     #       self.latitude, self.longitude), bearing=180+angle + self.orientation)
         #print("angle "+str(180+angle + self.orientation))
-        self.X2 = [tmp.latitude, tmp.longitude]
+    #    self.X2 = [tmp.latitude, tmp.longitude]
+        self.X2 = point_distance_bearing_to_new_point(point= [self.latitude, self.longitude],
+        distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=180+angle + self.orientation)
 
-        tmp = dist.destination(point=Point(
-            self.latitude, self.longitude), bearing=360-angle + self.orientation)
+  #      tmp = dist.destination(point=Point(
+ #           self.latitude, self.longitude), bearing=360-angle + self.orientation)
         #print("angle "+str(360-angle + self.orientation))
-        self.X3 = [tmp.latitude, tmp.longitude]
+#        self.X3 = [tmp.latitude, tmp.longitude]
 
+        self.X3=point_distance_bearing_to_new_point(point= [self.latitude, self.longitude],
+        distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=360-angle + self.orientation)
 
 def main(args):
 
     lat = 48.84482270388685
     lon = 2.3562098704389163
 
-    IPGP = WayPoint([lat, lon])
+    IPGP = WayPoint([lat, lon],90)
     print(IPGP.X0)
     print(IPGP.X1)
     print(IPGP.X2)

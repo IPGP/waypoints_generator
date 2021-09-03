@@ -12,9 +12,12 @@ class WaypointMap:
     "WaypointMap class to plot waypoints of a mission in a nice map"
 
     def __init__(self):
+        self.WP_icon_path_red = r"icons/circle_red.png"
+        self.WP_icon_path_black = r"icons/circle_black.png"
+        
         self.waypoint_nb = 0
         self.the_map = create_folium_map(
-            zoom_min=0, max_zoom=18, zoom_start=10)
+            zoom_min=0, max_zoom=50, zoom_start=50)
 
         # Add custom base maps to folium
         basemaps = {
@@ -57,10 +60,10 @@ class WaypointMap:
 
         # Add custom basemaps
         basemaps['Google Maps'].add_to(self.the_map)
-        basemaps['Google Satellite'].add_to(self.the_map)
+       # basemaps['Google Satellite'].add_to(self.the_map)
         basemaps['Google Terrain'].add_to(self.the_map)
-        basemaps['Google Satellite Hybrid'].add_to(self.the_map)
-        basemaps['Esri Satellite'].add_to(self.the_map)
+      #  basemaps['Google Satellite Hybrid'].add_to(self.the_map)
+       # basemaps['Esri Satellite'].add_to(self.the_map)
 
         tiles_maps = ['openstreetmap', 'Stamen Terrain']
         # tiles_maps = ['openstreetmap']
@@ -74,19 +77,30 @@ class WaypointMap:
     def add_waypoint(self, waypoint, markers=False, color='blue', popup_text=""):
         # Le point central du waypoint avec une fleche pour sa direction
         self.waypoint_nb += 1
-        if waypoint.orientation < 0:
-            orientation = waypoint.orientation+360
-        else:
-            orientation = waypoint.orientation
-        folium.Marker(location=waypoint.location, popup=popup_text, icon=folium.Icon(
-            color='beige', angle=int(orientation), icon='arrow-up', prefix='fa')).add_to(self.the_map)
+      
 
         self.the_map.add_child(folium.vector_layers.Polygon(locations=[waypoint.X0, waypoint.X1, waypoint.X2, waypoint.X3],
                                                             color='blue', fill=True,
                                                             fill_color='blue', fill_opacity=0.3, weight=2, popup=""))
 
+
+        
+        icon = folium.features.CustomIcon(icon_image=self.WP_icon_path_black ,icon_size=(25,25))
+
+
+        folium.Marker(location=waypoint.location, tooltip=str(self.waypoint_nb), icon=icon).add_to(self.the_map)
+            
         # Les markers de l'emprise
         if markers:
+            if waypoint.orientation < 0:
+                orientation = waypoint.orientation+360
+            else:
+               orientation = waypoint.orientation
+        
+            # marqueur central avec fleche
+            folium.Marker(location=waypoint.location, popup=popup_text, icon=folium.Icon(
+                color='beige', angle=int(orientation), icon='arrow-up', prefix='fa')).add_to(self.the_map)
+            
             folium.Marker(location=waypoint.X0, popup='X0', icon=folium.Icon(
                 color='red', icon='fa-map-pin')).add_to(self.the_map)
 
@@ -100,14 +114,38 @@ class WaypointMap:
                 color='red', icon='fa-map-pin')).add_to(self.the_map)
 
     def add_polygon(self, locations, color, fill_color, fill_opacity, weight, popup, fill=True):
+        # On retire le dernier point car c'est le premier
+        locations=locations[:-1]
         """ Plot shape of the mapping area with dots"""
         self.the_map.add_child(folium.vector_layers.Polygon(locations=locations, color=color, fill=True,
                                                             fill_color=fill_color, fill_opacity=fill_opacity, weight=2, popup=popup))
         nb = 0
         for point in locations:
+          #  print('point {} nb {}'.format( point, nb))
+
             folium.Marker(location=point, tooltip=str(nb)+"<br>"+str(point[0])+"<br>"+str(point[1]),
                           icon=folium.Icon(color='blue', icon="circle", prefix='fa')).add_to(self.the_map)
             nb += 1
+
+    def add_path_waypoints(self,waypoints_list):
+        """Draw waypoints path on the map""" 
+
+        #FF0000 Red
+        #00FF00 Green
+        color_list=[]
+        for i in range(self.waypoint_nb):
+            color_list.append(0xFF00+i*(0xFF0000-0xFF00)/(self.waypoint_nb-1))
+
+
+        list_waypoints=[]
+        for waypoint in waypoints_list:
+            list_waypoints.append(waypoint.location)
+        
+        line = folium.features.ColorLine(list_waypoints,  colors=color_list, nb_steps=12, weight=10, opacity=1,)
+        self.the_map.add_child(line)
+
+        #self.the_map.add_child(folium.vector_layers.Polygon(locations=list, color='red', fill=False, weight=2, popup=""))
+
 
     def add_area_of_interest(self, locations):
         self.the_map.add_child(folium.vector_layers.Polygon(locations=locations, color='#348feb', fill=True,
@@ -134,7 +172,7 @@ def main():
 
     zone = [A, B, C, D, E]
 
-    emprise_laterale = 40
+    emprise_laterale = 50
     emprise_longitudinale = 25
 
     the_map = WaypointMap()
