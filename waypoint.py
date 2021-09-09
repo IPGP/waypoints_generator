@@ -12,12 +12,13 @@ from utils import *
 class WayPoint:
     "Waypoint class"
 
-    def __init__(self, location, orientation, emprise_laterale=100, emprise_longitudinale=50):
+    def __init__(self, location, orientation, emprise_laterale=100, emprise_longitudinale=50,text=None):
         self.location = location
         self.latitude = self.location[0]
         self.longitude = self.location[1]
         self.altitude_absolue_sol = None
         self.altitude_relative_drone = None
+        self.text=text
         # self.hauteur_sol
         self.emprise_laterale = emprise_laterale  # en mètres
         self.emprise_longitudinale = emprise_longitudinale  # en mètres

@@ -16,6 +16,7 @@ debug = False
 debug = True
 
 
+
 def getAngle(A, B, C):
     "return angle en degrees between A,B and C in degrees"
     AB = geodesic(A, B).m
@@ -44,6 +45,13 @@ def point_distance_bearing_to_new_point(point, distance, bearing):
 #
     # print("angle "+str(angle + self.orientation))
     return [tmp.latitude, tmp.longitude]
+
+def middlepoint(A,B):
+    """ return the point in the middle of AB segment"""
+    a = LatLon(A[0], A[1])
+    b = LatLon(B[0], B[1])
+    c=a.intermediateTo(b,.5)
+    return [c.lat,c.lon ] 
 
 
 def iswithin(A, point1, point2):

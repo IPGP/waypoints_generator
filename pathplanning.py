@@ -6,6 +6,7 @@ import sys
 import geopy
 import copy
 from geopy.units import meters
+from pygeodesy.units import Lat
 import pyproj
 from geopy import Point, distance
 from geopy.distance import geodesic
@@ -177,7 +178,7 @@ class PathPlanning:
         indice_gauche = 0
         indice_droit = 1
         right = True
-        limite_AB = 1
+        limite_AB = .5
         finish = False
 
         tmp_A = self.points[indice_gauche]
@@ -195,59 +196,76 @@ class PathPlanning:
             emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
         i = 0
 
-        # on s'arrette quand cette distance est très petite
+        # on s'arrete quand cette distance est très petite
         while (getDistance(tmp_A, tmp_B) > limite_AB) and not finish:
             print('i {}'.format(i))
-            if i == 10:
+            if i == 15:
                 break
             direction_ext_right = getBearing(
                 tmp_B, self.points[indice_droit+1])
             direction_ext_left = getBearing(
                 tmp_A, self.points[indice_gauche-1])
 
+	
+            milieu_tmpA_tmpB = middlepoint(tmp_A,tmp_B)
+
             # Le point C est  sur la parralle à [tmp_A tmp_B]
             C = point_distance_bearing_to_new_point(
-                tmp_A, self.increment_lat, direction_right+90)
-
+                milieu_tmpA_tmpB, self.increment_lat, direction_right+90)
+            print('C {}'.format(C))
             # on trouve les points d'intersection de C avec son bearing et les segments latéraux
-
+            #self.waypoint_list.append(WayPoint(
+            #        C, direction_ext_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,text="C"))
             intersect_right = intersect_points_bearings(
                 C, direction_right, tmp_B, direction_ext_right)
 
             # verification que les points son bien sur les segments
             if not iswithin(intersect_right, tmp_B, self.points[indice_droit+1]):
                 print('not in segment right')
-               # print('intersect_right {} tmp_B {} self.points[indice_droit+1] {}'.format(
-                # s    intersect_right, tmp_B, self.points[indice_droit+1]))
-
                 indice_droit += 1
-                if (self.points[indice_droit] == self.points[indice_gauche]) or indice_droit >= (len(self.points)-2):
+                # Arret si le nouveau sommet est celui du coté opposé
+                if (self.points[indice_droit] == self.points[indice_gauche]):
+                    print('finish')
                     finish = True
                 direction_ext_right = getBearing(
                     self.points[indice_droit], self.points[indice_droit+1])
 
                 intersect_right = intersect_points_bearings(
-                    C, direction_left, tmp_B, direction_ext_left)
+                    C, direction_right, self.points[indice_droit], direction_ext_right)
+
 
             intersect_left = intersect_points_bearings(
                 C, direction_left, tmp_A, direction_ext_left)
 
+
             if not iswithin(intersect_left, tmp_A, self.points[indice_gauche-1]):
                 print('not in segment left')
-                print('indice_droit {} indice_gauche {}'.format(
-                    indice_droit, indice_gauche))
                 indice_gauche -= 1
-                if (self.points[indice_droit] == self.points[indice_gauche]) or indice_gauche >= 0:
+                # Arret si le nouveau sommet est celui du coté opposé
+                if (self.points[indice_droit] == self.points[indice_gauche]) :
                     print('finish')
                     finish = True
                 direction_ext_left = getBearing(
                     self.points[indice_gauche], self.points[indice_gauche-1])
 
                 intersect_left = intersect_points_bearings(
-                    C, direction_right, self.points[indice_gauche], direction_ext_left)
-                            # arret en cas de pb
+                    C, direction_left, self.points[indice_gauche], direction_ext_left)
+
+
+
+            # arret en cas de pb
             if(intersect_right[0]<0) or intersect_left[0]<0:
                 print('oups ! ')
+                if right : print('to_right')
+                else:  print('to_left')
+
+                print('C {}'.format(C))
+                print('direction_right {}'.format(direction_right))
+                print('indice_droit {} indice_gauche {}'.format(indice_droit,indice_gauche))
+                print('intersect_right {} intersect_left {}'.format(intersect_right,intersect_left))
+                print('tmp_A {} tmp_B {}'.format(tmp_A,tmp_B))
+                
+
                 break 
             if right:
                 self.waypoint_list.append(WayPoint(
@@ -267,128 +285,6 @@ class PathPlanning:
             right = not right
             i += 1
 
-    def generate_path_normal_0(self):
-        """ path type allez-retour"""
-        # https://www.math10.com/en/geometry/geogebra/geogebra.html
-        # point de départ
-        indice_gauche = 0
-        indice_droit = 1
-        limite_AB = 1
-        right = True
-        tmp_A = self.points[indice_gauche]
-        tmp_B = self.points[indice_droit]
-        # la direction initiale est celle de points[0] vers points[1]
-        direction_right = getBearing(tmp_A, tmp_B)
-        direction_left = getBearing(tmp_B, tmp_A)
-        tmp = None
-        # premiers point
-        self.waypoint_list.append(WayPoint(
-            tmp_A, direction_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-
-        self.waypoint_list.append(WayPoint(tmp_B, getBearing(
-            tmp_B, self.points[indice_droit+1]),
-            emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-        i = 0
-
-        # on s'arrette quand cette distance est très petite
-        while getDistance(tmp_A, tmp_B) > limite_AB:
-            if i == 3:
-                break
-            distance = getDistance(tmp_A, tmp_B)
-            direction_ext_right = getBearing(
-                tmp_B, self.points[indice_droit+1])
-            direction_ext_left = getBearing(
-                tmp_A, self.points[indice_gauche-1])
-            print('direction_ext_left {} direction_ext_right {}'.format(
-                direction_ext_left, direction_ext_right))
-            print('direction_left {}'.format(direction_left))
-            print('direction_right {}'.format(direction_right))
-            if right == True:
-                print('rigth')
-                teta = getAngle(tmp_A, tmp_B, self.points[indice_droit+1])
-                if teta > 90:
-                    increment_distance = self.increment_lat / \
-                        sin(radians(180-teta))
-                    sin(radians(180-teta))
-                else:
-                    increment_distance = self.increment_lat/sin(radians(teta))
-
-                new_B = point_distance_bearing_to_new_point(
-                    tmp_B, increment_distance, direction_ext_right)
-                print('tmp_A {} direction_ext_left {} new_B {} direction_left {}'.format(
-                    tmp_A, direction_ext_left, new_B, direction_left))
-                new_A = intersect_points_bearings(
-                    tmp_A, direction_ext_left, new_B, direction_left)
-                print('new_A x{}'.format(new_A))
-
-                self.waypoint_list.append(WayPoint(
-                    new_B, direction_left, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-                self.waypoint_list.append(WayPoint(
-                    new_A, getBearing(tmp_A, self.points[indice_gauche-1]), emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-
-            else:
-                # to left
-                print('left')
-                teta = getAngle(tmp_B, tmp_A, self.points[indice_gauche-1])
-                print('teta {}'.format(teta))
-                if teta > 90:
-                    increment_distance = self.increment_lat / \
-                        sin(radians(180-teta))
-                else:
-                    increment_distance = self.increment_lat/sin(radians(teta))
-                print('increment_distance {}'.format(increment_distance))
-                new_A = point_distance_bearing_to_new_point(
-                    tmp_A, increment_distance, getBearing(tmp_A, self.points[indice_gauche-1]))
-                new_B = intersect_points_bearings(
-                    new_A, direction_right, tmp_B, getBearing(tmp_B, self.points[indice_droit+1]))
-
-                self.waypoint_list.append(WayPoint(
-                    new_A, direction_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-                self.waypoint_list.append(WayPoint(
-                    new_B, getBearing(tmp_B, self.points[indice_droit+1]), emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-            # from IPython import embed;embed()
-
-            tmp_A = new_A
-            tmp_B = new_B
-
-            print('distance_tmp={} right={}'.format(
-                getDistance(tmp_A, tmp_B), right))
-
-            if indice_droit == indice_gauche:
-                print("fini car meme indice")
-                break
-            right = not right
-            i += 1
-
-
-"""             # increment_distance doit etre une fonction des angles...
-            # on est dans le cas du dernire trajet sur ce segment et on va changer de tmp_B
-            if distance_tmp <= increment_distance:
-                # Dji cree un point sur une ligne en dessous avec un angle a calculer en fonction de la distance a tmp_B
-                if right:
-                    print('right')
-
-                    tmp = tmp_B
-                    # On ajoute le nouveau point
-                    self.waypoint_list.append(WayPoint(
-                        tmp, direction, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-                    indice_droit += 1
-                    tmp_B = self.points[indice_droit]
-                else:
-                    print('to_left')
-                    tmp = tmp_A
-                    # On ajoute le nouveau point
-                    self.waypoint_list.append(WayPoint(
-                        tmp, direction, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-                    indice_gauche -= 1
-                    tmp_A = self.points[indice_gauche]
-            else:
-                if right:
-                    tmp_B = tmp
-                else:
-                    tmp_A = tmp
-            """
-
 
 def export_to_kml(self):
     """ Export waypoints to kml for DJI UAV"""
@@ -406,8 +302,8 @@ def main(args):
 
     points = [E, A, B, C, D]
     points = [A, B, C, D, E]
-    # points = [A, B, C, D]
-    # points = [A, B, C]
+    points = [A, B, C, D]
+    points = [A, B, C]
 
     # Calcul des distances
     AB = geodesic(A, B).m
@@ -429,7 +325,7 @@ def main(args):
           B), getBearing(B, C), getBearing(A, D)))
 
     orientation = angle_EAB
-    emprise_laterale = 90
+    emprise_laterale = 60
 #    emprise_laterale = 50
     emprise_longitudinale = 50
 

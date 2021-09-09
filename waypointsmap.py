@@ -74,7 +74,7 @@ class WaypointMap:
         for tile in tiles_maps:
             folium.TileLayer(tile).add_to(self.the_map)
 
-    def add_waypoint(self, waypoint, markers_emprise=False, direction=False, emprise=False, color='blue', popup_text=""):
+    def add_waypoint(self, waypoint, markers_emprise=False, direction=False, emprise=False, color='blue', popup_text=None):
         # Le point central du waypoint avec une fleche pour sa direction
         self.waypoint_nb += 1
 
@@ -85,7 +85,7 @@ class WaypointMap:
                 orientation = waypoint.orientation
 
             # marqueur central avec fleche
-            folium.Marker(location=waypoint.location, popup=popup_text, icon=folium.Icon(
+            folium.Marker(location=waypoint.location, popup=waypoint.text, icon=folium.Icon(
                 color='blue', angle=int(orientation), icon='arrow-up', prefix='fa')).add_to(self.the_map)
 
         if emprise:
@@ -115,9 +115,9 @@ class WaypointMap:
                 color='red', icon='fa-map-pin')).add_to(self.the_map)
 
     def add_polygon(self, locations, color, fill_color, fill_opacity, weight, popup, fill=True):
-        # On retire le dernier point car c'est le premier
-        #locations = locations[:-1]
-        """ Plot shape of the mapping area with dots"""
+        """Plot
+         Plot shape of the mapping area with markers
+         """
         self.the_map.add_child(folium.vector_layers.Polygon(locations=locations, color=color, fill=True,
                                                             fill_color=fill_color, fill_opacity=fill_opacity, weight=2, popup=popup))
         nb = 0
