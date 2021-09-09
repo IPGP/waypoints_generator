@@ -1,11 +1,19 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
 from geopy.distance import geodesic
-from math import degrees, acos
+from math import degrees, acos, radians
 from geographiclib.geodesic import Geodesic
-from geopy import Point, distance
+from geopy import Point, distance, point
 import geopy
-from math import  degrees, sqrt
+from math import degrees, sqrt, sin, cos
+import sys
+
+from numpy import result_type
+from pygeodesy.sphericalTrigonometry import *
+from pygeodesy.sphericalNvector import LatLon
+
+debug = False
+debug = True
 
 
 def getAngle(A, B, C):
@@ -17,20 +25,56 @@ def getAngle(A, B, C):
     return degrees(acos((AB*AB+BC*BC-CA*CA)/(2*AB*BC)))
 
 
+def getDistance(A, B):
+    return geodesic(A, B).m
+
+
 def getBearing(A, B):
     "return bearing en degrees between A and B"
     return Geodesic.WGS84.Inverse(A[0], A[1], B[0], B[1])['azi1']
 
-def point_distance_bearing_to_new_point(point,distance,bearing):
+
+def point_distance_bearing_to_new_point(point, distance, bearing):
     """return new coordinates of the input point with distance and bearing
         distance in meters
     """
 
     dist = geopy.distance.distance(meters=(distance))
-    tmp = dist.destination(point=Point(point[0],point[1]), bearing=bearing)
+    tmp = dist.destination(point=Point(point[0], point[1]), bearing=bearing)
 #
-    #print("angle "+str(angle + self.orientation))
-    return  [tmp.latitude, tmp.longitude]
+    # print("angle "+str(angle + self.orientation))
+    return [tmp.latitude, tmp.longitude]
+
+
+def iswithin(A, point1, point2):
+    """
+    Check whether this point is between two other points.
+    If this point is not on the great circle arc defined by both points,
+    return whether it is within the area bound by perpendiculars to the great
+    circle at each point (in the same hemispere).
+    """
+    a = LatLon(A[0], A[1])
+    b = LatLon(point1[0], point1[1])
+    c = LatLon(point2[0], point2[1])
+    list = b, c
+#    return a.isenclosedBy(list)
+    return a.iswithin(b, c)
+
+
+def intersect_points_bearings(A, bearing_A, B, bearing_B):
+    """ return the intersection point C of the two lines
+    from A with bearing_A to B with bearing_B
+    """
+    a = LatLon(A[0], A[1])
+    b = LatLon(B[0], B[1])
+
+    c = a.intersection(bearing_A, b, bearing_B)
+    return [c.lat, c.lon]
+
+
+def pouet():
+    pass
+
 
 def main():
     A = (48.844781966005414, 2.354806246580006)
@@ -39,9 +83,16 @@ def main():
     D = (48.84415592294359, 2.3565687535257593)
     E = (48.84395753653702, 2.355015706155173)
 
-    print(getAngle(A, B, C))
-    print(getBearing(A, B))
-    print(getBearing(B, C))
+#    print(getAngle(A, B, C))
+    #   print(getBearing(A, B))
+  #  print(getBearing(B, C))
+    A_to_B_bearing = getBearing(A, B)
+    C_to_B_bearing = getBearing(C, B)
+
+    inter = intersect_points_bearings(A, A_to_B_bearing, C, C_to_B_bearing)
+    print('B is {}, B intersect is {} difference {}'.format(
+        B, inter, getDistance(B, inter)))
+    iswithin(A, B, C)
 
 
 if __name__ == '__main__':
