@@ -8,13 +8,15 @@ from utils import getAngle
 # https://fontawesome.com/v4.7/icons/
 
 
+
 class WaypointMap:
     "WaypointMap class to plot waypoints of a mission in a nice map"
 
-    def __init__(self):
-        self.WP_icon_path_red = r"icons/circle_red.png"
-        self.WP_icon_path_black = r"icons/circle_black.png"
-
+    def __init__(self,startpoint=None):
+        self.start_icon_path =r"icons/star_yellow.png"
+        self.WP_icon_path_black_path=r"icons/circle_black.png"       
+        self.waypoint_nb = 0
+        self.startpoint=startpoint
         self.waypoint_nb = 0
         self.the_map = create_folium_map(
             zoom_min=0, max_zoom=50, zoom_start=50)
@@ -74,7 +76,7 @@ class WaypointMap:
         for tile in tiles_maps:
             folium.TileLayer(tile).add_to(self.the_map)
 
-    def add_waypoint(self, waypoint, markers_emprise=False, direction=False, emprise=False, color='blue', popup_text=None):
+    def add_waypoint(self, waypoint, footprint_markers=False, direction=False, footprint=False, color='blue', popup_text=None):
         # Le point central du waypoint avec une fleche pour sa direction
         self.waypoint_nb += 1
 
@@ -88,19 +90,19 @@ class WaypointMap:
             folium.Marker(location=waypoint.location, popup=waypoint.text, icon=folium.Icon(
                 color='blue', angle=int(orientation), icon='arrow-up', prefix='fa')).add_to(self.the_map)
 
-        if emprise:
+        if footprint:
             self.the_map.add_child(folium.vector_layers.Polygon(locations=[waypoint.X0, waypoint.X1, waypoint.X2, waypoint.X3],
                                                                 color='blue', fill=True,
                                                                 fill_color='blue', fill_opacity=0.3, weight=2, popup=""))
 
-        icon = folium.features.CustomIcon(
-            icon_image=self.WP_icon_path_black, icon_size=(25, 25))
+        icon_black = folium.features.CustomIcon(
+            icon_image=self.WP_icon_path_black_path, icon_size=(25, 25))
 
         folium.Marker(location=waypoint.location, tooltip=str(
-            self.waypoint_nb)+"<br>"+str(waypoint.location[0])+"<br>"+str(waypoint.location[1]), icon=icon).add_to(self.the_map)
+            self.waypoint_nb)+"<br>"+str(waypoint.location[0])+"<br>"+str(waypoint.location[1]), icon=icon_black).add_to(self.the_map)
 
         # Les markers de l'emprise
-        if markers_emprise:
+        if footprint_markers:
 
             folium.Marker(location=waypoint.X0, popup='X0', icon=folium.Icon(
                 color='red', icon='fa-map-pin')).add_to(self.the_map)
@@ -133,14 +135,28 @@ class WaypointMap:
 
         # FF0000 Red
         # 00FF00 Green
+
+        if self.startpoint:
+            self.waypoint_nb +=1
+            list_waypoints = [self.startpoint]
+            icon_star = folium.features.CustomIcon(
+            icon_image=self.start_icon_path, icon_size=(40, 40))
+
+            folium.Marker(location=self.startpoint, tooltip='Start'+"<br>"+str(self.startpoint[0])+"<br>"+str(self.startpoint[1]), icon=icon_star).add_to(self.the_map)
+        else:
+            list_waypoints = []
+
+        for waypoint in waypoints_list:
+            list_waypoints.append(waypoint.location)
+            # print(waypoint.location)
+        if self.startpoint:
+            self.waypoint_nb +=1
+            list_waypoints.append(self.startpoint)
+ 
         color_list = []
         for i in range(self.waypoint_nb):
             color_list.append(0xFF00+i*(0xFF0000-0xFF00)/(self.waypoint_nb-1))
 
-        list_waypoints = []
-        for waypoint in waypoints_list:
-            list_waypoints.append(waypoint.location)
-            # print(waypoint.location)
 
         line = folium.features.ColorLine(
             list_waypoints,  colors=color_list, nb_steps=12, weight=10, opacity=1,)

@@ -16,37 +16,25 @@ import waypoint
 from utils import *
 from waypoint import WayPoint
 from waypointsmap import WaypointMap
+from collections import deque
 
 # https://nbviewer.jupyter.org/github/python-visualization/folium/blob/master/examples/Rotate_icon.ipynb
 # rotation des icones
 
-
-class Corner:
-    def __init__(self, coordonnes):
-        self.coordonnes = coordonnes
-        self.distance_to_next_corner
-    pass
-
-    @property
-    def coordonnes(self):
-        return self._coordonnes
-
-    @coordonnes.setter
-    def coordonnes(self, coordonnes):
-        self._coordonnes = coordonnes
+debug =False
 
 
 class PathPlanning:
     "PathPlanning class"
 
-    def __init__(self, points,  emprise_laterale, emprise_longitudinale, recouvrement_lat=0., recouvrement_lon=0.,orientation=None):
+    def __init__(self, points,  emprise_laterale, emprise_longitudinale, recouvrement_lat=0., recouvrement_lon=0.,orientation=None,start_point=None):
         """Pathplanning generates waypoints """
 
         self.points = points
         self.waypoint_list = []
         self.distances = []
         self.orientation = orientation
-
+        self.start_point=start_point
         self.emprise_laterale = emprise_laterale  # en mètres
         self.emprise_longitudinale = emprise_longitudinale  # en mètres
         self.recouvrement_lat = recouvrement_lat  # pourcentage
@@ -233,11 +221,11 @@ class PathPlanning:
             # verification que les points son bien sur les segments
             if not iswithin(intersect_right, tmp_B, self.points[indice_droit+1]):
                 #not_in_right = True
-                print('not in segment right')
+                if debug : print('not in segment right')
                 indice_droit += 1
                 # Arret si le nouveau sommet est celui du coté opposé
                 if (indice_droit == indice_gauche)or (indice_droit>len(self.points)-2):
-                    print('finish')
+                    if debug :  print('finish')
                     finish = True
                     break
                 direction_ext_right = getBearing(
@@ -247,18 +235,18 @@ class PathPlanning:
                 C, D, self.points[indice_droit], self.points[indice_droit+1])
     
                 if not iswithin(intersect_right, self.points[indice_droit], self.points[indice_droit+1]):
-                    print('Really not in segment right !')
+                    if debug :  print('Really not in segment right !')
                     not_in_right = True
 
             intersect_left = intersect_four_points_(
                 C, D, tmp_A, self.points[indice_gauche-1])
             # si il n'y a pas d'intersection dans ce segment, on prend le suivant
             if not iswithin(intersect_left, tmp_A, self.points[indice_gauche-1]):
-                print('not in segment left')
+                if debug :  print('not in segment left')
                 indice_gauche -= 1
                 # Arret si le nouveau sommet est celui du coté opposé
                 if (indice_droit == indice_gauche):
-                    print('finish')
+                    if debug :  print('finish')
                     finish = True
                     break
                 direction_ext_left = getBearing(
@@ -268,11 +256,11 @@ class PathPlanning:
                 C, D, self.points[indice_gauche], self.points[indice_gauche-1])
 
                 if not iswithin(intersect_left, self.points[indice_gauche], self.points[indice_gauche-1]):
-                    print('Really not in segment left !')
+                    if debug :  print('Really not in segment left !')
                     not_in_left = True
 
             if not_in_left and not_in_right:
-                print('Finish !!!! ')
+                if debug : print('Finish !!!! ')
                 finish = True
                 #self.waypoint_list.append(WayPoint(
                 #    C, direction_ext_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,text="C"))
@@ -318,14 +306,40 @@ class PathPlanning:
             not_in_left = False
             not_in_right = False
 
+    def compute_length_and_turns(self):
+        """ Compute the path length and turn numbers"""
 
-def export_to_kml(self):
-    """ Export waypoints to kml for DJI UAV"""
-    pass
+        total_distance=0.0
+        nb_turns= 0
+
+        #start point
+        distance_list = [self.start_point]
+
+        for waypoint in self.waypoint_list:
+            distance_list.append(waypoint.location)
+        distance_list.append(self.start_point)
+        #print(distance_list)
+        
+        # le "-1" pour ne pas aller trop loin
+        for i in range(len(distance_list[:-1])):
+            total_distance += getDistance(distance_list[i],distance_list[i+1])
+            nb_turns +=1
+        print('Total distance is {}m with {} turns'.format(total_distance,nb_turns))
+
+
+    def export_to_kml(self):
+        """ Export waypoints to kml for DJI UAV"""
+        pass
 
 
 def main(args):
     """la fonction main"""
+    start_point_list=[]
+    start_point_list.append((48.846383084057315, 2.356424447320463))
+    start_point_list.append((48.84415899803569, 2.353495475053588))
+    start_point_list.append((48.844599153918324, 2.355340339361402))
+    start_point_list.append((48.84508549389749, 2.356311190101862))
+    #start_point = (48.84361006276646, 2.3559057454019223)
 
     A = (48.844781966005414, 2.354806246580006)
     B = (48.845476490908986, 2.3559582742434224)
@@ -335,38 +349,50 @@ def main(args):
     F = (48.844565798460536, 2.3552507666007094)
 
  #   points = [E, A, B, C, D]
-    points = [A, B, C, D, E,F]
+    points = deque([A, B, C, D, E])
+    points = deque([ E,A,B, C, D])
+#    points = deque([A, B, C, D, E,F])
 #    points = [A, B, C, D]
-#    points = [A, B, C]
+    #points = deque( [A, B, C])
 
   
    # orientation = angle_EAB
     emprise_laterale = 50
     emprise_longitudinale = 20
 
-    Path_generator = PathPlanning(points,  emprise_laterale,
-                                  emprise_longitudinale, recouvrement_lat=0.8, recouvrement_lon=0.8)
-    # pp.find_best_orientation()
-    # pp.GeneratePath("snail")
-#    Path_generator.generate_path_snail_0()
-    Path_generator.generate_path_normal()
-    the_map = WaypointMap()
+    # on fait varier les start_point
+    #    for start_point in start_point_list:
 
-    # on place les limites de la zone
-    the_map.add_polygon(locations=points, color='#ff7800', fill=True,
-                        fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
+    start_point = start_point_list[1]
+    #on fait varier le point de départ
+    for i in range(len(points)):
 
-    # On ajoute les waypoint qui ont été trouvés a la carte
-    for wp in Path_generator.waypoint_list:
-        the_map.add_waypoint(wp, direction=False, emprise=False)
+        Path_generator = PathPlanning(points,  emprise_laterale,
+                                    emprise_longitudinale, start_point=start_point ,recouvrement_lat=0.8, recouvrement_lon=0.8)
+        # pp.find_best_orientation()
+        # pp.GeneratePath("snail")
+    #    Path_generator.generate_path_snail_0()
+        Path_generator.generate_path_normal()
+        the_map = WaypointMap(start_point)
 
-    the_map.add_path_waypoints(Path_generator.waypoint_list)
+        # on place les limites de la zone
+        the_map.add_polygon(locations=points, color='#ff7800', fill=True,
+                            fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
 
-    # Exportation de la carte
-    the_map.export_to_file()
+        # On ajoute les waypoint qui ont été trouvés a la carte
+        for wp in Path_generator.waypoint_list:
+            the_map.add_waypoint(wp, direction=False, footprint=False)
 
-    # Path_generator.export_to_kml()
+        the_map.add_path_waypoints(Path_generator.waypoint_list)
 
+        # Exportation de la carte
+        the_map.export_to_file()
 
+        print('Start point is {}'.format(points[0]))
+        # Path_generator.export_to_kml()
+        Path_generator.compute_length_and_turns()
+
+        # on fait tourner le 1er point
+        points.rotate(1)
 if __name__ == '__main__':
     main(sys.argv)
