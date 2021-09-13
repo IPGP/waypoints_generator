@@ -17,6 +17,7 @@ from utils import *
 from waypoint import WayPoint
 from waypointsmap import WaypointMap
 from collections import deque
+from copy import copy
 
 # https://nbviewer.jupyter.org/github/python-visualization/folium/blob/master/examples/Rotate_icon.ipynb
 # rotation des icones
@@ -31,8 +32,11 @@ class PathPlanning:
         """Pathplanning generates waypoints """
 
         self.points = points
+        self.nb_points = len(self.points)
         self.waypoint_list = []
         self.distances = []
+        self.bearings = []
+        
         self.orientation = orientation
         self.start_point=start_point
         self.emprise_laterale = emprise_laterale  # en mètres
@@ -43,14 +47,21 @@ class PathPlanning:
         self.increment_lat = self.emprise_laterale*(1-recouvrement_lat)
  #       self.dist_long = geopy.distance.distance(meters=self.increment_lon)
 #        self.dist_lat = geopy.distance.distance(meters=self.increment_lat)
-    #    self.compute_distances()
+        self.compute_distances_and_bearings()
 
-    def compute_distances(self):
+    def compute_distances_and_bearings(self):
         """ compute distances between all points"""
         # last point == first point so don't compute
-        for i in range(len(self.points)-1):
-            self.distances.append(getDistance(
-                self.points[i], self.points[i+1]))
+        points = copy(self.points)
+        points.append(self.points[0])
+        
+        for i in range(len(points)-1):
+            self.distances.append(getDistance(points[i], points[i+1]))
+            self.bearings.append(getBearing(points[i], points[i+1]))
+            if debug: print('distance {} bearing {}'.format(getDistance(points[i], points[i+1]),getBearing(points[i], points[i+1])))
+    
+        print(self.bearings)
+        print(self.distances)
 
     def generate_path(self, style):
         """choix du syle du path"""
@@ -58,6 +69,46 @@ class PathPlanning:
             self.generate_path_snail()
         elif style == "normal":
             self.generate_path_normal()
+
+    def generate_path_snail(self):
+        """ Crée un parcours de type escargot """
+        tmp_point = [self.points[0][0], self.points[0][1]]
+        distances_a_couvrir = self.distances
+        round_nb=0
+        
+        finish = False
+        first = True
+        #on parcours tous les points
+        while not finish:
+            i = 0
+            for point in self.points:
+                #On ne fait rien pour le premier point
+                if first:
+                    first = False
+                    new_point=self.points[0]
+                    print('wp {} is {} an bearing is {}'.format(i,new_point,self.bearings[0]))
+                    self.waypoint_list.append(WayPoint(
+                    [new_point[0], new_point[1]], self.bearings[0], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                else:
+                    distance_tmp=self.distances[i-1]-round_nb*self.increment_lat
+                    self.distances[i-1]= distance_tmp
+                    new_point= point_distance_bearing_to_new_point([tmp_point[0], tmp_point[1]],distance_tmp,self.bearings[i-1])
+                    print('wp {} is {} an bearing is {} an distance is {}'.format(i,new_point,self.bearings[i-1],self.distances[i-1]))
+
+                     # dernier point de la boucle, il faut encore retire un peu
+                    if i == self.nb_points:
+                        #distance[i]-=32
+                        pass
+                    self.waypoint_list.append(WayPoint(
+                    [new_point[0], new_point[1]], self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+        
+                tmp_point=new_point
+                #print(i)
+                i+=1
+                   
+            round_nb+=1
+            if round_nb == 2:
+                finish = True
 
     def generate_path_snail_0(self):
         """ Crée un parcours de type escargot """
@@ -163,7 +214,7 @@ class PathPlanning:
         """ path type allez-retour
         avec des parrallelles"""
         # point de départ
-        indice_gauche = len(self.points)
+        indice_gauche = self.nb_points 
         indice_droit = 1
         right = True
         limite_AB = .5
@@ -224,7 +275,7 @@ class PathPlanning:
                 if debug : print('not in segment right')
                 indice_droit += 1
                 # Arret si le nouveau sommet est celui du coté opposé
-                if (indice_droit == indice_gauche)or (indice_droit>len(self.points)-2):
+                if (indice_droit == indice_gauche)or (indice_droit>self.nb_points -2):
                     if debug :  print('finish')
                     finish = True
                     break
@@ -365,34 +416,34 @@ def main(args):
 
     start_point = start_point_list[1]
     #on fait varier le point de départ
-    for i in range(len(points)):
+#    for i in range(len(points)):
 
-        Path_generator = PathPlanning(points,  emprise_laterale,
-                                    emprise_longitudinale, start_point=start_point ,recouvrement_lat=0.8, recouvrement_lon=0.8)
-        # pp.find_best_orientation()
-        # pp.GeneratePath("snail")
-    #    Path_generator.generate_path_snail_0()
-        Path_generator.generate_path_normal()
-        the_map = WaypointMap(start_point)
+    Path_generator = PathPlanning(points,  emprise_laterale,
+                                emprise_longitudinale, start_point=start_point ,recouvrement_lat=0.8, recouvrement_lon=0.8)
+    # pp.find_best_orientation()
+    # pp.GeneratePath("snail")
+    #Path_generator.generate_path_snail()
+    Path_generator.generate_path_normal()
+    the_map = WaypointMap(start_point)
 
-        # on place les limites de la zone
-        the_map.add_polygon(locations=points, color='#ff7800', fill=True,
-                            fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
+    # on place les limites de la zone
+    the_map.add_polygon(locations=points, color='#ff7800', fill=True,
+                        fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
 
-        # On ajoute les waypoint qui ont été trouvés a la carte
-        for wp in Path_generator.waypoint_list:
-            the_map.add_waypoint(wp, direction=False, footprint=False)
+    # On ajoute les waypoint qui ont été trouvés a la carte
+    for wp in Path_generator.waypoint_list:
+        the_map.add_waypoint(wp, direction=True, footprint=False)
 
-        the_map.add_path_waypoints(Path_generator.waypoint_list)
+    the_map.add_path_waypoints(Path_generator.waypoint_list)
 
-        # Exportation de la carte
-        the_map.export_to_file()
+    # Exportation de la carte
+    the_map.export_to_file()
 
-        print('Start point is {}'.format(points[0]))
-        # Path_generator.export_to_kml()
-        Path_generator.compute_length_and_turns()
+    print('Start point is {}'.format(points[0]))
+    # Path_generator.export_to_kml()
+    Path_generator.compute_length_and_turns()
 
         # on fait tourner le 1er point
-        points.rotate(1)
+        #points.rotate(1)
 if __name__ == '__main__':
     main(sys.argv)
