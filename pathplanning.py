@@ -7,10 +7,12 @@ import geopy
 import copy
 from geopy.units import meters
 from pygeodesy.units import Lat
+from pygeodesy.sphericalTrigonometry import LatLon
 import pyproj
 from geopy import Point, distance
 from geopy.distance import geodesic
 from geopy import Point, distance
+from pygeodesy.points import *
 
 import waypoint
 from utils import *
@@ -45,8 +47,6 @@ class PathPlanning:
         self.recouvrement_lon = recouvrement_lon  # pourcentage
         self.increment_lon = self.emprise_longitudinale*(1-recouvrement_lon)
         self.increment_lat = self.emprise_laterale*(1-recouvrement_lat)
- #       self.dist_long = geopy.distance.distance(meters=self.increment_lon)
-#        self.dist_lat = geopy.distance.distance(meters=self.increment_lat)
         self.compute_distances_and_bearings()
 
     def compute_distances_and_bearings(self):
@@ -73,142 +73,82 @@ class PathPlanning:
     def generate_path_snail(self):
         """ Crée un parcours de type escargot """
         tmp_point = [self.points[0][0], self.points[0][1]]
-        distances_a_couvrir = self.distances
         round_nb=0
-        
+
+        limits=[]
+        # initialise limits with points
+        for point in self.points:
+            limits.append(LatLon(point[0],point[1]))
+        limits = tuple(i for i in limits)
+
         finish = False
         first = True
         #on parcours tous les points
+        j=0
         while not finish:
+            # i va décrire tous les points
             i = 0
             for point in self.points:
+                j+=1
                 #On ne fait rien pour le premier point
-                if first:
-                    first = False
-                    new_point=self.points[0]
-                    print('wp {} is {} an bearing is {}'.format(i,new_point,self.bearings[0]))
+                if round_nb==0:
+                    new_point= point
+                    #print('new_point is {} points[i] is {}'.format(new_point,self.points[i]))
+
+                    # on change pour le dernier point
+                    if i == len(self.points):
+                        new_point = point_distance_bearing_to_new_point(self.points[0], 50, self.bearings[i]+180)
+#                        print('self.bearings[i]+180 {}'.format(self.bearings[i]+180))
+
+                    #from IPython import embed; embed()
+
+                    # Check if new_point is inside limits"
                     self.waypoint_list.append(WayPoint(
-                    [new_point[0], new_point[1]], self.bearings[0], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                        [new_point[0], new_point[1]], self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,text=i))
+                
+                # apres le 1er tour
                 else:
-                    distance_tmp=self.distances[i-1]-round_nb*self.increment_lat
-                    self.distances[i-1]= distance_tmp
-                    new_point= point_distance_bearing_to_new_point([tmp_point[0], tmp_point[1]],distance_tmp,self.bearings[i-1])
-                    print('wp {} is {} an bearing is {} an distance is {}'.format(i,new_point,self.bearings[i-1],self.distances[i-1]))
+                    # C sur la parrallelle au prochain coté décalé de ce qu'il faut ! 
+                    #  Sans doute -90 parfois. A voir comment savoir dans quel sens on tourne
+                    C = point_distance_bearing_to_new_point(point, self.increment_lat*round_nb, self.bearings[i]+90)
 
                      # dernier point de la boucle, il faut encore retire un peu
                     if i == self.nb_points:
-                        #distance[i]-=32
-                        pass
+                        C = point_distance_bearing_to_new_point(self.points[i], self.increment_lat*(round_nb-1)*10, self.bearings[i]+90)
+                        print('pouf')
+
+                    new_point= intersect_points_bearings([tmp_point[0], tmp_point[1]],self.bearings[i-1],C,self.bearings[i])
+                   # print('tmp_point is {}'.format(tmp_point))
+                   # print('new_point is {} points[i] is {}'.format(new_point,self.points[i]))
+
+                    #self.waypoint_list.append(WayPoint(
+                    #[C[0], C[1]], self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,text='C'))
+                    #print('C is {} an bearing is {}'.format(C,self.bearings[i]))
+
+                    #si la distance au nouveau point est très petite, c'est fini
+                    print('getDistance(tmp_point,new_point) {}'.format(getDistance(tmp_point,new_point)))
+                    print('tmp_point {} new_point {}'.format(tmp_point,new_point))
+                    if getDistance(tmp_point,new_point)<2:
+                        print('Fini car distance')
+                        finish = True
+                        break
                     self.waypoint_list.append(WayPoint(
-                    [new_point[0], new_point[1]], self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-        
+                        [new_point[0], new_point[1]], self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                    if not (LatLon(new_point[0], new_point[1]).isenclosedBy(limits)) :                
+                        print('outside point')
+                        #finish = True
+                        #break
                 tmp_point=new_point
                 #print(i)
                 i+=1
-                   
+            
+            print(j)
             round_nb+=1
-            if round_nb == 2:
+#            if round_nb == 17:
+            if j > 32 or round_nb == 7:
                 finish = True
-
-    def generate_path_snail_0(self):
-        """ Crée un parcours de type escargot """
-        # https://www.math10.com/en/geometry/geogebra/geogebra.html
-        # point de départ
-        tmp_point = [self.points[0][0], self.points[0][1]]
-        finish = False
-        j = 0
-#        for j in range(0, 1):
-        for j in range(0, 2):
-          #      while (not finish):
-            print("j "+str(j))
-            # On parcours tous les points. Le dernier est en fait une copie du 1er pour plus de simplicité.
-            # Il faut s'arreter à l'avant dernier point
-            for i in range(len(self.points)-1):
-                direction = getBearing(self.points[i], self.points[i+1])
-                # print('i={} / {}'.format(i,len(self.points)))
-
-                distance_a_couvrir = self.distances[i]
-
-                # dernier point premier tour ok
-                if (i == (len(self.points)-2)) and (j == 0):
-                    angle_g = getAngle(
-                        self.points[-2], self.points[0], self.points[1])
-                    angle_d = getAngle(
-                        self.points[0], self.points[1], self.points[2])
-                    G = -(self.emprise_laterale/2)/(sin(radians(angle_g)))
-                    distance_a_couvrir += G
-                    print((self.emprise_laterale/2)/(sin(radians(angle_g))))
-                # dernier point deuxieme tour
-                elif (i == (len(self.points)-2)) and (j == 1):
-                    angle_g = getAngle(
-                        self.points[-2], self.points[0], self.points[1])
-                    angle_d = getAngle(
-                        self.points[0], self.points[1], self.points[2])
-                    G = (self.emprise_laterale/2)*(cos(radians(angle_g)))
-                    D = (self.emprise_laterale/2)/sin(radians(180-angle_d))
-                    print('i {} angle_g= {} angle_d {} G {} D {}'.format(
-                        i, angle_g, angle_d, G, D))
-                    distance_a_couvrir -= G
-                    distance_a_couvrir -= D
-
-                # premier point deuxieme tour ok
-                elif (j > 0) and (i == 0):
-                    angle_g = getAngle(
-                        self.points[-2], self.points[0], self.points[1])
-                    angle_d = getAngle(
-                        self.points[0], self.points[1], self.points[2])
-                    G = (self.emprise_laterale/2)*(cos(radians(angle_g)))
-                    D = (self.emprise_laterale/2)/sin(radians(180-angle_d))
-                    print('i {} angle_g= {} angle_d {} G {} D {}'.format(
-                        i, angle_g, angle_d, G, D))
-                    distance_a_couvrir -= G
-                    distance_a_couvrir -= D
-
-                elif (j > 0) and (i > 0):
-                    angle_g = getAngle(
-                        self.points[i-1], self.points[i], self.points[i+1])
-                    angle_d = getAngle(
-                        self.points[i], self.points[i+1], self.points[i+2])
-                    G = (self.emprise_laterale/2)*(cos(radians(angle_g)))
-                    D = (self.emprise_laterale/2)/sin(radians(180-angle_d))
-                    print('i {} angle_g= {} angle_d {} G {} D {}'.format(
-                        i, angle_g, angle_d, G, D))
-                    if angle_g < 90:
-                        distance_a_couvrir -= G
-                    else:
-                        distance_a_couvrir += G
-                    if angle_d < 90:
-                        distance_a_couvrir -= D
-                    else:
-                        distance_a_couvrir += G
-
-                if distance_a_couvrir < 0:
-                    finish = True
-
-                print('distance_a_couvrir {}m '.format(distance_a_couvrir))
-
-                # self.waypoint_list.append(WayPoint([tmp_point[0], tmp_point[1]], direction, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-
-                tmp_point = point_distance_bearing_to_new_point(
-                    (tmp_point[0], tmp_point[1]), distance_a_couvrir, direction)
-
-                self.waypoint_list.append(WayPoint(
-                    [tmp_point[0], tmp_point[1]], direction, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-
-            # j +=1
-                # while distance_parcourue <= distance_a_couvrir:
-
-                # tmp = dist.destination(point=Point(tmp_point), bearing=direction)
-                #  tmp=point_distance_bearing_to_new_point((tmp_point[0],tmp_point[1]),self.increment_lon,direction)
-
-                #  self.waypoint_list.append(
-                #      WayPoint([tmp[0], tmp[1]], direction, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-
-                #  tmp_point = [tmp[0], tmp[1]]
-                #  distance_parcourue += self.increment_lon
-
-                # print('distance_a_couvrir {}m distance_parcourue {}m'.format(
-                #   distance_a_couvrir, distance_parcourue))
+                break
+            
 
     def generate_path_normal(self):
         """ path type allez-retour
@@ -401,11 +341,31 @@ def main(args):
 
  #   points = [E, A, B, C, D]
     points = deque([A, B, C, D, E])
-    points = deque([ E,A,B, C, D])
+    #points = deque([ E,A,B, C, D])
 #    points = deque([A, B, C, D, E,F])
-#    points = [A, B, C, D]
+   # points = [A, B, C, D]
     #points = deque( [A, B, C])
 
+    a=LatLon(48.844781966005414, 2.354806246580006)
+    b=LatLon(48.844781966005414, 2.354806246580006)
+    c=LatLon(48.844781966005414, 2.354806246580006)
+    d=LatLon (48.84415592294359, 2.3565687535257593)
+    e=LatLon(48.84395753653702, 2.355015706155173)
+    f=LatLon(48.844565798460536, 2.3552507666007094)
+    
+
+ #   points = [E, A, B, C, D]
+    points = deque([A, B, C, D, E])
+    #points = deque([ E,A,B, C, D])
+#    points = deque([A, B, C, D, E,F])
+   # points = [A, B, C, D]
+    #points = deque( [A, B, C])
+
+    poly = a,b,c,d,e,f
+    poly_anticlock = f,e,d,c,b,a
+
+#    isconvex(poly)
+#    isclockwise(poly)
   
    # orientation = angle_EAB
     emprise_laterale = 50
@@ -418,13 +378,14 @@ def main(args):
     #on fait varier le point de départ
 #    for i in range(len(points)):
 
-    Path_generator = PathPlanning(points,  emprise_laterale,
-                                emprise_longitudinale, start_point=start_point ,recouvrement_lat=0.8, recouvrement_lon=0.8)
+    Path_generator = PathPlanning(points=points,  emprise_laterale=emprise_laterale,
+                                emprise_longitudinale=emprise_longitudinale, start_point=start_point ,recouvrement_lat=0.8, recouvrement_lon=0.5)
     # pp.find_best_orientation()
     # pp.GeneratePath("snail")
-    #Path_generator.generate_path_snail()
-    Path_generator.generate_path_normal()
-    the_map = WaypointMap(start_point)
+    Path_generator.generate_path_snail()
+#    Path_generator.generate_path_normal()
+#    the_map = WaypointMap(start_point)
+    the_map = WaypointMap()
 
     # on place les limites de la zone
     the_map.add_polygon(locations=points, color='#ff7800', fill=True,
@@ -432,7 +393,7 @@ def main(args):
 
     # On ajoute les waypoint qui ont été trouvés a la carte
     for wp in Path_generator.waypoint_list:
-        the_map.add_waypoint(wp, direction=True, footprint=False)
+        the_map.add_waypoint(wp, direction=False, footprint=False)
 
     the_map.add_path_waypoints(Path_generator.waypoint_list)
 

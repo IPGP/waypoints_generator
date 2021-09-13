@@ -69,6 +69,8 @@ def iswithin(A, point1, point2):
     return a.iswithin(b, c)
 
 
+
+
 def intersect_four_points_(A,B,C,D):
     """
     return the intersection point of the line AB and line CD
@@ -91,16 +93,16 @@ def intersect_points_bearings(A, bearing_A, B, bearing_B):
     """ return the intersection point C of the two lines
     from A with bearing_A to B with bearing_B
     """
+ ##   print('tmp {} bearing_tmp {} C {} bearing_C {}'.format(A, bearing_A, B, bearing_B))
     a = LatLon(A[0], A[1])
     b = LatLon(B[0], B[1])
 
     c = a.intersection(bearing_A, b, bearing_B)
-        
+
+          # probleme d'antipode. Si le point d'intersection est à plus de 10000km, il y a un probleme
+    if (c.distanceTo(a) > 10000)and (c.distanceTo(a) > 10000):
+        c= c.antipode()
     return [c.lat, c.lon]
-
-
-def pouet():
-    pass
 
 
 def main():

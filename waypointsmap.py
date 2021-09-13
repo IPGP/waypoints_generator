@@ -15,7 +15,6 @@ class WaypointMap:
     def __init__(self,startpoint=None):
         self.start_icon_path =r"icons/star_yellow.png"
         self.WP_icon_path_black_path=r"icons/circle_black.png"       
-        self.waypoint_nb = 0
         self.startpoint=startpoint
         self.waypoint_nb = 0
         self.the_map = create_folium_map(
@@ -99,7 +98,7 @@ class WaypointMap:
             icon_image=self.WP_icon_path_black_path, icon_size=(25, 25))
 
         folium.Marker(location=waypoint.location, tooltip=str(
-            self.waypoint_nb)+"<br>"+str(waypoint.location[0])+"<br>"+str(waypoint.location[1]), icon=icon_black).add_to(self.the_map)
+            self.waypoint_nb-1)+"<br>"+str(waypoint.location[0])+"<br>"+str(waypoint.location[1]), icon=icon_black).add_to(self.the_map)
 
         # Les markers de l'emprise
         if footprint_markers:
@@ -162,7 +161,6 @@ class WaypointMap:
             list_waypoints,  colors=color_list, nb_steps=12, weight=10, opacity=1,)
         self.the_map.add_child(line)
 
-        #self.the_map.add_child(folium.vector_layers.Polygon(locations=list, color='red', fill=False, weight=2, popup=""))
 
     def add_area_of_interest(self, locations):
         self.the_map.add_child(folium.vector_layers.Polygon(locations=locations, color='#348feb', fill=True,
