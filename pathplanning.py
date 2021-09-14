@@ -75,11 +75,9 @@ class PathPlanning:
         tmp_point = [self.points[0][0], self.points[0][1]]
         round_nb=0
 
-        limits=[]
+        segments_list=[]
         # initialise limits with points
-        for point in self.points:
-            limits.append(LatLon(point[0],point[1]))
-        limits = tuple(i for i in limits)
+       
 
         finish = False
         first = True
@@ -138,6 +136,7 @@ class PathPlanning:
                         print('outside point')
                         #finish = True
                         #break
+                segments_list.append([tmp_point,new_point])
                 tmp_point=new_point
                 #print(i)
                 i+=1
@@ -362,7 +361,7 @@ def main(args):
     #points = deque( [A, B, C])
 
     poly = a,b,c,d,e,f
-    poly_anticlock = f,e,d,c,b,a
+    poly_anticlock = f,e,d,c,b,a 
 
 #    isconvex(poly)
 #    isclockwise(poly)
