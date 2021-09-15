@@ -60,8 +60,8 @@ class PathPlanning:
             self.bearings.append(getBearing(points[i], points[i+1]))
             if debug: print('distance {} bearing {}'.format(getDistance(points[i], points[i+1]),getBearing(points[i], points[i+1])))
     
-        print(self.bearings)
-        print(self.distances)
+        #print(self.bearings)
+        #print(self.distances)
 
     def generate_path(self, style):
         """choix du syle du path"""
@@ -124,30 +124,30 @@ class PathPlanning:
                     #print('C is {} an bearing is {}'.format(C,self.bearings[i]))
 
                     #si la distance au nouveau point est très petite, c'est fini
-                    print('getDistance(tmp_point,new_point) {}'.format(getDistance(tmp_point,new_point)))
-                    print('tmp_point {} new_point {}'.format(tmp_point,new_point))
-                    if getDistance(tmp_point,new_point)<2:
-                        print('Fini car distance')
+                    #print('getDistance(tmp_point,new_point) {}'.format(getDistance(tmp_point,new_point)))
+                    #print('tmp_point {} new_point {}'.format(tmp_point,new_point))
+                    tmp=latlontri(tmp_point[0], tmp_point[1])
+                    new=latlontri(new_point[0], new_point[1])
+                    intersc = intersect_segments_list([tmp,new], segments_list[:-1])
+                    if intersc:
+                        print('Fini intersection avec segment déja créé')
+                        print(intersc)
+                        # il faut trouver le point
+          
                         finish = True
                         break
                     self.waypoint_list.append(WayPoint(
                         [new_point[0], new_point[1]], self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-                    if not (LatLon(new_point[0], new_point[1]).isenclosedBy(limits)) :                
-                        print('outside point')
-                        #finish = True
-                        #break
-                segments_list.append([tmp_point,new_point])
+                tmp=latlontri(tmp_point[0], tmp_point[1])
+                new=latlontri(new_point[0], new_point[1])
+                segments_list.append([tmp,new])
                 tmp_point=new_point
                 #print(i)
                 i+=1
             
-            print(j)
+            #print(j)
             round_nb+=1
-#            if round_nb == 17:
-            if j > 32 or round_nb == 7:
-                finish = True
-                break
-            
+#           
 
     def generate_path_normal(self):
         """ path type allez-retour

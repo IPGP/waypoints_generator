@@ -68,19 +68,13 @@ def iswithin(A, point1, point2):
 #    return a.isenclosedBy(list)
     return a.iswithin(b, c)
 
-def issegmentsintersects(A,B,C,D):
-    """
-    return intersection of segment AB and segment CD
-    if it exists otherwise return None
-    https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
-    """
 
 
 def onSegment(p, q, r):
 # Given three collinear points p, q, r, the function checks if
 # point q lies on line segment 'pr'
-    if ( (q.lon <= max(p.lon, r.lon)) and (q.lon >= min(p.lon, r.lon)) and
-           (q.lat <= max(p.lat, r.lat)) and (q.lat >= min(p.lat, r.lat))):
+    if ( (q.lat <= max(p.lat, r.lat)) and (q.lat >= min(p.lat, r.lat)) and
+           (q.lon <= max(p.lon, r.lon)) and (q.lon >= min(p.lon, r.lon))):
         return True
     return False
  
@@ -95,7 +89,7 @@ def orientation(p, q, r):
     # See https://www.geeksforgeeks.org/orientation-3-ordered-points/amp/
     # for details of below formula.
      
-    val = (float(q.lat - p.lat) * (r.lon - q.lon)) - (float(q.lon - p.lon) * (r.lat - q.lat))
+    val = (float(q.lon - p.lon) * (r.lat - q.lat)) - (float(q.lat - p.lat) * (r.lon - q.lon))
     if (val > 0):
          
         # Clockwise orientation
@@ -107,11 +101,13 @@ def orientation(p, q, r):
     else:
          
         # Collinear orientation
+       # print('Collinear orientation ')
         return 0
  
  
- # The main function that returns true if
+# The main function that returns true if
 # the line segment 'p1q1' and 'p2q2' intersect.
+# false if Collinear
 def doIntersect(p1,q1,p2,q2):
      
     # Find the 4 orientations required for
@@ -123,10 +119,15 @@ def doIntersect(p1,q1,p2,q2):
  
     # General case
     if ((o1 != o2) and (o3 != o4)):
-        return True
+        inter = p1.intersection( q1,p2,q2)
+        # probleme d'antipode. Si le point d'intersection est à plus de 10000km, il y a un probleme
+        if (inter.distanceTo(p1) > 10000)and (inter.distanceTo(p1) > 10000):
+            inter= inter.antipode()
+        return inter
+        #return True
  
     # Special Cases
- 
+    """ 
     # p1 , q1 and p2 are collinear and p2 lies on segment p1q1
     if ((o1 == 0) and onSegment(p1, p2, q1)):
         return True
@@ -142,9 +143,27 @@ def doIntersect(p1,q1,p2,q2):
     # p2 , q2 and q1 are collinear and q1 lies on segment p2q2
     if ((o4 == 0) and onSegment(p2, q1, q2)):
         return True
- 
+    """
     # If none of the cases
     return False
+
+def intersect_segments_list(new_vector, segments_list):
+    # Returns true if new_vector intersec with one at least one of the segement 
+    # of the segment list
+    p1=new_vector[0]
+    q1=new_vector[1]
+    
+    for segment in segments_list:
+        p2=segment[0]
+        q2=segment[1]
+        inter = doIntersect(p1,q1,p2,q2)
+        if inter:
+            print('intersection avec {} {} {} {} et {} {} {} {}'.format(p1.lat,p1.lon,q1.lat,q1.lon,p2.lat,p2.lon,q2.lat,q2.lon))
+            return inter
+        
+    return False
+
+
 
 def intersect_four_points_(A,B,C,D):
     """
@@ -156,12 +175,12 @@ def intersect_four_points_(A,B,C,D):
     c = latlontri(C[0], C[1])
     d = latlontri(D[0], D[1])
 
-    c = a.intersection( b, c,d)
+    f = a.intersection( b, c,d)
     # probleme d'antipode. Si le point d'intersection est à plus de 10000km, il y a un probleme
-    if (c.distanceTo(a) > 10000)and (c.distanceTo(a) > 10000):
-        c= c.antipode()
+    if (f.distanceTo(a) > 10000)and (f.distanceTo(a) > 10000):
+        f= f.antipode()
 
-    return [c.lat, c.lon]
+    return [f.lat, f.lon]
 
 
 def intersect_points_bearings(A, bearing_A, B, bearing_B):
