@@ -1,7 +1,9 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
 import folium
+from geopy import point
 from gpxplotter import create_folium_map
+from numpy.lib.function_base import append
 from waypoint import WayPoint
 from utils import getAngle
 
@@ -115,17 +117,21 @@ class WaypointMap:
             folium.Marker(location=waypoint.X3, popup='X0', icon=folium.Icon(
                 color='red', icon='fa-map-pin')).add_to(self.the_map)
 
-    def add_polygon(self, locations, color, fill_color, fill_opacity, weight, popup, fill=True):
+    def add_polygon(self, points, color, fill_color, fill_opacity, weight, popup, fill=True):
         """Plot
          Plot shape of the mapping area with markers
          """
-        self.the_map.add_child(folium.vector_layers.Polygon(locations=locations, color=color, fill=True,
+        locs=[]
+        for point in points:
+          #  print('point {} nb {}'.format( point, nb))
+            locs.append([point.lat,point.lon])
+        self.the_map.add_child(folium.vector_layers.Polygon(locations=locs, color=color, fill=True,
                                                             fill_color=fill_color, fill_opacity=fill_opacity, weight=2, popup=popup))
         nb = 0
-        for point in locations:
+        for point in points:
           #  print('point {} nb {}'.format( point, nb))
 
-            folium.Marker(location=point, tooltip=str(nb)+"<br>"+str(point[0])+"<br>"+str(point[1]),
+            folium.Marker(location=[point.lat,point.lon], tooltip=str(nb)+"<br>"+str(point.lat)+"<br>"+str(point.lon),
                           icon=folium.Icon(color='blue', icon="circle", prefix='fa')).add_to(self.the_map)
             nb += 1
 

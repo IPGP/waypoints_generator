@@ -7,15 +7,20 @@ from geopy import Point, distance
 import geopy
 import sys
 from utils import *
+from pygeodesy.sphericalTrigonometry import LatLon 
 
 
 class WayPoint:
     "Waypoint class"
 
-    def __init__(self, location, orientation, emprise_laterale=100, emprise_longitudinale=50,text=None):
-        self.location = location
-        self.latitude = self.location[0]
-        self.longitude = self.location[1]
+    def __init__(self, point, orientation, emprise_laterale=100, emprise_longitudinale=50,text=None):
+        
+        # point is a latlontri
+        self.point = point
+        self.latitude = self.point.lat
+        self.longitude = self.point.lon
+        self.location = [self.point.lat,self.point.lon]
+
         self.altitude_absolue_sol = None
         self.altitude_relative_drone = None
         self.text=text

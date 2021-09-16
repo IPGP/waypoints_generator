@@ -8,11 +8,13 @@ import copy
 from geopy.units import meters
 from pygeodesy.units import Lat
 from pygeodesy.sphericalTrigonometry import LatLon
+from pygeodesy.sphericalNvector import LatLon as LatLonsphericalNvector
 import pyproj
 from geopy import Point, distance
 from geopy.distance import geodesic
 from geopy import Point, distance
 from pygeodesy.points import *
+from pygeodesy.points import isclockwise,isconvex
 
 import waypoint
 from utils import *
@@ -23,6 +25,9 @@ from copy import copy
 
 # https://nbviewer.jupyter.org/github/python-visualization/folium/blob/master/examples/Rotate_icon.ipynb
 # rotation des icones
+# Faire des schémas
+#https://www.math10.com/en/geometry/geogebra/fullscreen.html
+
 
 debug =False
 
@@ -35,9 +40,13 @@ class PathPlanning:
 
         self.points = points
         self.nb_points = len(self.points)
+        if debug : print('Les points de ce pathplanning sont {}'.format(self.points))
         self.waypoint_list = []
         self.distances = []
         self.bearings = []
+        #self.clockwise = isclockwise(points)
+        #self.isconvex =  isconvex(self.points)
+
         
         self.orientation = orientation
         self.start_point=start_point
@@ -56,12 +65,13 @@ class PathPlanning:
         points.append(self.points[0])
         
         for i in range(len(points)-1):
-            self.distances.append(getDistance(points[i], points[i+1]))
-            self.bearings.append(getBearing(points[i], points[i+1]))
+            if debug :print('point lat {} lon {}'.format(points[i].lat,points[i].lon))
+            self.distances.append(points[i].distanceTo(points[i+1]))
+            self.bearings.append(getBearing_latlon(points[i], points[i+1]))
             if debug: print('distance {} bearing {}'.format(getDistance(points[i], points[i+1]),getBearing(points[i], points[i+1])))
     
-        #print(self.bearings)
-        #print(self.distances)
+        if debug : print('bearings {}'.format(self.bearings))
+        if debug : print('distances {}'.format(self.distances))
 
     def generate_path(self, style):
         """choix du syle du path"""
@@ -72,7 +82,10 @@ class PathPlanning:
 
     def generate_path_snail(self):
         """ Crée un parcours de type escargot """
-        tmp_point = [self.points[0][0], self.points[0][1]]
+        tmp_point = self.points[0]
+        print('tmp_point {}'.format(tmp_point))
+        #tmp_point = [latlontri(self.points[0][0], self.points[0][1])]
+
         round_nb=0
 
         segments_list=[]
@@ -95,27 +108,27 @@ class PathPlanning:
 
                     # on change pour le dernier point
                     if i == len(self.points):
-                        new_point = point_distance_bearing_to_new_point(self.points[0], 50, self.bearings[i]+180)
+                        new_point = point_distance_bearing_to_new_point_latlon(self.points[0], 50, self.bearings[i]+180)
 #                        print('self.bearings[i]+180 {}'.format(self.bearings[i]+180))
 
                     #from IPython import embed; embed()
 
                     # Check if new_point is inside limits"
-                    self.waypoint_list.append(WayPoint(
-                        [new_point[0], new_point[1]], self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,text=i))
+                    self.waypoint_list.append(WayPoint(new_point, self.bearings[i], 
+                    emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,text=i))
                 
                 # apres le 1er tour
                 else:
                     # C sur la parrallelle au prochain coté décalé de ce qu'il faut ! 
                     #  Sans doute -90 parfois. A voir comment savoir dans quel sens on tourne
-                    C = point_distance_bearing_to_new_point(point, self.increment_lat*round_nb, self.bearings[i]+90)
+                    C = point_distance_bearing_to_new_point_latlon(point, self.increment_lat*round_nb, self.bearings[i]+90)
 
                      # dernier point de la boucle, il faut encore retire un peu
                     if i == self.nb_points:
-                        C = point_distance_bearing_to_new_point(self.points[i], self.increment_lat*(round_nb-1)*10, self.bearings[i]+90)
+                        C = point_distance_bearing_to_new_point_latlon(self.points[i], self.increment_lat*(round_nb-1)*10, self.bearings[i]+90)
                         print('pouf')
 
-                    new_point= intersect_points_bearings([tmp_point[0], tmp_point[1]],self.bearings[i-1],C,self.bearings[i])
+                    new_point= intersect_points_bearings_latlon(tmp_point,self.bearings[i-1],C,self.bearings[i])
                    # print('tmp_point is {}'.format(tmp_point))
                    # print('new_point is {} points[i] is {}'.format(new_point,self.points[i]))
 
@@ -126,21 +139,39 @@ class PathPlanning:
                     #si la distance au nouveau point est très petite, c'est fini
                     #print('getDistance(tmp_point,new_point) {}'.format(getDistance(tmp_point,new_point)))
                     #print('tmp_point {} new_point {}'.format(tmp_point,new_point))
-                    tmp=latlontri(tmp_point[0], tmp_point[1])
-                    new=latlontri(new_point[0], new_point[1])
-                    intersc = intersect_segments_list([tmp,new], segments_list[:-1])
-                    if intersc:
+                    #tmp=latlontri(tmp_point[0], tmp_point[1])
+                    #new=latlontri(new_point[0], new_point[1])
+                    # on cherche si le nouveau segment coupe un des précédants sans que ce soit le dernier et en partant en arrière
+                    point,segment = intersect_segments_list([tmp_point,new_point], segments_list[:-1])
+                    if point:
                         print('Fini intersection avec segment déja créé')
-                        print(intersc)
-                        # il faut trouver le point
-          
+                        print('intersc_segment {} {} {} {}'.format(segment[0].lat,segment[0].lon,segment[1].lat,segment[1].lon))
+                        # il faut trouver le dernier point
+
+                        #on teste si la droite parralelle au segment coupé passant par tmp_point est plus éloigné de self.increment_lat. si ce n'est pas le cas alors
+                        # tmp est le dernier point
+                        #if self.clockwise:
+                        # on trouve l'angle entre le segment coupé et [tmp,new]
+                        
+                        angle = getAnglelatlon(segment[1],point,tmp_point)
+                        H = tmp_point.distanceTo(point)*sin(radians(angle))
+                        print('H {} self.increment_lat {}'.format(H,self.increment_lat))
+                        
+                        if H <= self.increment_lat:
+                            print('tmp est le dernier point possible')
+                            finish = True
+                            break
+                        # sinon, on trouve l'intersection avec la parrallele au segment décalé de self.increment_lat
+                        distance = (H-self.increment_lat)/sin(radians(angle))
+                        ### Le +90 depend si on est clockwise !!!!
+                        last_point = point_distance_bearing_to_new_point_latlon(tmp_point, distance, getBearing(tmp_point,new_point))
+                        self.waypoint_list.append(WayPoint(new_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,text="Last"))
+                        print('Dernier segment')
+
                         finish = True
                         break
-                    self.waypoint_list.append(WayPoint(
-                        [new_point[0], new_point[1]], self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-                tmp=latlontri(tmp_point[0], tmp_point[1])
-                new=latlontri(new_point[0], new_point[1])
-                segments_list.append([tmp,new])
+                    self.waypoint_list.append(WayPoint(new_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                segments_list.append([tmp_point,new_point])
                 tmp_point=new_point
                 #print(i)
                 i+=1
@@ -163,6 +194,7 @@ class PathPlanning:
 
         tmp_A = self.points[0]
         tmp_B = self.points[1]
+        #tmp_B = self.points[1]
         # la direction initiale est celle de points[0] vers points[1]
         direction_right = getBearing(tmp_A, tmp_B)
         direction_left = getBearing(tmp_B, tmp_A)
@@ -179,7 +211,7 @@ class PathPlanning:
         i = 0
 
         # on s'arrete quand cette distance est très petite
-        while (getDistance(tmp_A, tmp_B) > limite_AB) and not finish:
+        while (tmp_A.distanceTo(tmp_B) > limite_AB) and not finish:
             #print('i {}'.format(i))
             #if i == 15:
             #    break
@@ -188,12 +220,11 @@ class PathPlanning:
             direction_ext_left = getBearing(
                 tmp_A, self.points[indice_gauche-1])
 
-            #milieu_tmpA_tmpB = middlepoint(tmp_A, tmp_B)
             # Le point C est  sur la parralle à [tmp_A tmp_B]
-            C = point_distance_bearing_to_new_point(
+            C = point_distance_bearing_to_new_point_latlon(
                 tmp_A, self.increment_lat, direction_right+90)
             # le point D est sur la ligne C avec son bearing et à distance d=10m sans importance
-            D = point_distance_bearing_to_new_point(
+            D = point_distance_bearing_to_new_point_latlon(
                 C, 10, direction_left)
             
             # on trouve les points d'intersection de C avec son bearing et les segments latéraux
@@ -204,12 +235,13 @@ class PathPlanning:
 #            intersect_right = intersect_points_bearings(
 #                C, direction_right, tmp_B, direction_ext_right)
  
-            intersect_right = intersect_four_points_(
+            intersect_right = intersect_four_points_latlon(
                 C, D, tmp_B, self.points[indice_droit+1])
  
 
+
             # verification que les points son bien sur les segments
-            if not iswithin(intersect_right, tmp_B, self.points[indice_droit+1]):
+            if not iswithinLatLontTri(intersect_right, tmp_B, self.points[indice_droit+1]):
                 #not_in_right = True
                 if debug : print('not in segment right')
                 indice_droit += 1
@@ -221,17 +253,17 @@ class PathPlanning:
                 direction_ext_right = getBearing(
                     self.points[indice_droit], self.points[indice_droit+1])
 
-                intersect_right = intersect_four_points_(
+                intersect_right = intersect_four_points_latlon(
                 C, D, self.points[indice_droit], self.points[indice_droit+1])
     
-                if not iswithin(intersect_right, self.points[indice_droit], self.points[indice_droit+1]):
+                if not iswithinLatLontTri(intersect_right, self.points[indice_droit], self.points[indice_droit+1]):
                     if debug :  print('Really not in segment right !')
                     not_in_right = True
 
-            intersect_left = intersect_four_points_(
+            intersect_left = intersect_four_points_latlon(
                 C, D, tmp_A, self.points[indice_gauche-1])
             # si il n'y a pas d'intersection dans ce segment, on prend le suivant
-            if not iswithin(intersect_left, tmp_A, self.points[indice_gauche-1]):
+            if not iswithinLatLontTri(intersect_left, tmp_A, self.points[indice_gauche-1]):
                 if debug :  print('not in segment left')
                 indice_gauche -= 1
                 # Arret si le nouveau sommet est celui du coté opposé
@@ -245,7 +277,7 @@ class PathPlanning:
                 intersect_left = intersect_four_points_(
                 C, D, self.points[indice_gauche], self.points[indice_gauche-1])
 
-                if not iswithin(intersect_left, self.points[indice_gauche], self.points[indice_gauche-1]):
+                if not iswithinLatLontTri(intersect_left, self.points[indice_gauche], self.points[indice_gauche-1]):
                     if debug :  print('Really not in segment left !')
                     not_in_left = True
 
@@ -258,7 +290,8 @@ class PathPlanning:
 
                 break
             # arret en cas de pb
-            if(intersect_right[0] < 0) or intersect_left[0] < 0:
+#            if(intersect_right[0] < 0) or intersect_left[0] < 0:
+            if(intersect_right.lat < 0) or intersect_left.lon < 0:
                 print('oups ! ')
                 if right:
                     print('to_right')
@@ -346,25 +379,28 @@ def main(args):
     #points = deque( [A, B, C])
 
     a=LatLon(48.844781966005414, 2.354806246580006)
-    b=LatLon(48.844781966005414, 2.354806246580006)
-    c=LatLon(48.844781966005414, 2.354806246580006)
-    d=LatLon (48.84415592294359, 2.3565687535257593)
+    b=LatLon(48.845476490908986, 2.3559582742434224)
+    c=LatLon(48.844800522139515, 2.356945151087957)
+    d=LatLon(48.84415592294359, 2.3565687535257593)
     e=LatLon(48.84395753653702, 2.355015706155173)
     f=LatLon(48.844565798460536, 2.3552507666007094)
     
 
- #   points = [E, A, B, C, D]
-    points = deque([A, B, C, D, E])
-    #points = deque([ E,A,B, C, D])
-#    points = deque([A, B, C, D, E,F])
+#    points = [E, A, B, C, D]
+    #points = deque([A, B, C, D, E])
+ #   points = deque([ E,A,B, C, D])
+   # points = deque([A, B, C, D, E,F])
    # points = [A, B, C, D]
-    #points = deque( [A, B, C])
+#    points = deque( [A, B, C])
 
-    poly = a,b,c,d,e,f
-    poly_anticlock = f,e,d,c,b,a 
+    points = deque([f,e,d,c,b,a])
+    points = deque([a,b,c])
+    points = deque([a,b,c,d])
+ #   points = deque([a,b,c,d,e])
+#    points = deque([a,b,c,d,e,f])
+    
+    #points.rotate(1)
 
-#    isconvex(poly)
-#    isclockwise(poly)
   
    # orientation = angle_EAB
     emprise_laterale = 50
@@ -382,12 +418,12 @@ def main(args):
     # pp.find_best_orientation()
     # pp.GeneratePath("snail")
     Path_generator.generate_path_snail()
-#    Path_generator.generate_path_normal()
-#    the_map = WaypointMap(start_point)
+    #Path_generator.generate_path_normal()
+    the_map = WaypointMap(start_point)
     the_map = WaypointMap()
 
     # on place les limites de la zone
-    the_map.add_polygon(locations=points, color='#ff7800', fill=True,
+    the_map.add_polygon(points=points, color='#ff7800', fill=True,
                         fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
 
     # On ajoute les waypoint qui ont été trouvés a la carte
@@ -399,9 +435,9 @@ def main(args):
     # Exportation de la carte
     the_map.export_to_file()
 
-    print('Start point is {}'.format(points[0]))
+    #print('Start point is {}'.format(points[0]))
     # Path_generator.export_to_kml()
-    Path_generator.compute_length_and_turns()
+    #Path_generator.compute_length_and_turns()
 
         # on fait tourner le 1er point
         #points.rotate(1)

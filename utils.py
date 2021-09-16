@@ -9,16 +9,38 @@ from math import degrees, sqrt, sin, cos
 import sys
 
 from numpy import result_type
-from pygeodesy.sphericalTrigonometry import LatLon as latlontri
-from pygeodesy.sphericalNvector import *
+from pygeodesy.sphericalTrigonometry import LatLon as LatLontri
+from pygeodesy.sphericalNvector import LatLon as LatLonsphericalNvector
+
+#from pygeodesy.sphericalNvector import *
 
 debug = False
 debug = True
 
+def LatLontrigo2nvector(A):
+    return(LatLonsphericalNvector(A.lat,A.lon))
 
+def test_LatLontrigo2nvector():
+    a = LatLontri(2,4)
+    if type(LatLontrigo2nvector(a))==LatLonsphericalNvector:
+        return True
+    else:
+        return False
 
 def getAngle(A, B, C):
     "return angle en degrees between A,B and C in degrees"
+    AB = geodesic(A, B).m
+    BC = geodesic(B, C).m
+    CA = geodesic(A, C).m
+
+    return degrees(acos((AB*AB+BC*BC-CA*CA)/(2*AB*BC)))
+
+def getAnglelatlon(a, b,c):
+    "return angle en degrees between Latlon A,B and C in degrees"
+    A=[a.lat,a.lon]
+    B=[b.lat,b.lon]
+    C=[c.lat,c.lon]
+    
     AB = geodesic(A, B).m
     BC = geodesic(B, C).m
     CA = geodesic(A, C).m
@@ -32,7 +54,15 @@ def getDistance(A, B):
 
 def getBearing(A, B):
     "return bearing en degrees between A and B"
-    return Geodesic.WGS84.Inverse(A[0], A[1], B[0], B[1])['azi1']
+    if type(A) ==  LatLontri :
+
+        return Geodesic.WGS84.Inverse(A.lat, A.lon, B.lat, B.lon)['azi1']
+    else :
+        return Geodesic.WGS84.Inverse(A[0], A[1], B[0], B[1])['azi1']
+
+def getBearing_latlon(A, B):
+    "return bearing en degrees between A and B"
+    return Geodesic.WGS84.Inverse(A.lat, A.lon, B.lat, B.lon)['azi1']
 
 
 def point_distance_bearing_to_new_point(point, distance, bearing):
@@ -46,12 +76,17 @@ def point_distance_bearing_to_new_point(point, distance, bearing):
     # print("angle "+str(angle + self.orientation))
     return [tmp.latitude, tmp.longitude]
 
-def middlepoint(A,B):
-    """ return the point in the middle of AB segment"""
-    a = LatLon(A[0], A[1])
-    b = LatLon(B[0], B[1])
-    c=a.intermediateTo(b,.5)
-    return [c.lat,c.lon ] 
+def point_distance_bearing_to_new_point_latlon(point, distance, bearing):
+    """return new coordinates of the input point with distance and bearing
+        distance in meters
+    """
+
+    dist = geopy.distance.distance(meters=(distance))
+    tmp = dist.destination(point=Point(point.lat, point.lon), bearing=bearing)
+#
+    # print("angle "+str(angle + self.orientation))
+    return LatLontri(tmp.latitude, tmp.longitude)
+
 
 
 def iswithin(A, point1, point2):
@@ -61,9 +96,23 @@ def iswithin(A, point1, point2):
     return whether it is within the area bound by perpendiculars to the great
     circle at each point (in the same hemispere).
     """
-    a = LatLon(A[0], A[1])
-    b = LatLon(point1[0], point1[1])
-    c = LatLon(point2[0], point2[1])
+    a = LatLonsphericalNvector(A[0], A[1])
+    b = LatLonsphericalNvector(point1[0], point1[1])
+    c = LatLonsphericalNvector(point2[0], point2[1])
+    list = b, c
+#    return a.isenclosedBy(list)
+    return a.iswithin(b, c)
+
+def iswithinLatLontTri(A, point1, point2):
+    """
+    Check whether this point is between two other points.
+    If this point is not on the great circle arc defined by both points,
+    return whether it is within the area bound by perpendiculars to the great
+    circle at each point (in the same hemispere).
+    """
+    a = LatLonsphericalNvector(A.lat,A.lon)
+    b = LatLonsphericalNvector(point1.lat,point1.lon)
+    c = LatLonsphericalNvector(point2.lat, point2.lon)
     list = b, c
 #    return a.isenclosedBy(list)
     return a.iswithin(b, c)
@@ -112,6 +161,11 @@ def doIntersect(p1,q1,p2,q2):
      
     # Find the 4 orientations required for
     # the general and special cases
+    # print("#############################")
+    # print('type(p1) {}'.format(type(p1)))
+    # print('type(q1) {}'.format(type(q1)))
+    # print('type(p2) {}'.format(type(p2)))
+    # print('type(q2) {}'.format(type(q2)))
     o1 = orientation(p1, q1, p2)
     o2 = orientation(p1, q1, q2)
     o3 = orientation(p2, q2, p1)
@@ -121,10 +175,10 @@ def doIntersect(p1,q1,p2,q2):
     if ((o1 != o2) and (o3 != o4)):
         inter = p1.intersection( q1,p2,q2)
         # probleme d'antipode. Si le point d'intersection est à plus de 10000km, il y a un probleme
-        if (inter.distanceTo(p1) > 10000)and (inter.distanceTo(p1) > 10000):
-            inter= inter.antipode()
-        return inter
-        #return True
+        #if (inter.distanceTo(p1) > 10000)and (inter.distanceTo(p1) > 10000):
+            #inter= inter.antipode()
+        #return inter
+        return inter,(p2,q2)
  
     # Special Cases
     """ 
@@ -145,23 +199,24 @@ def doIntersect(p1,q1,p2,q2):
         return True
     """
     # If none of the cases
-    return False
+    return False,False
+
+
 
 def intersect_segments_list(new_vector, segments_list):
     # Returns true if new_vector intersec with one at least one of the segement 
     # of the segment list
     p1=new_vector[0]
     q1=new_vector[1]
-    
-    for segment in segments_list:
+    for segment in reversed(segments_list):
         p2=segment[0]
         q2=segment[1]
-        inter = doIntersect(p1,q1,p2,q2)
+        inter,segment = doIntersect(p1,q1,p2,q2)
         if inter:
-            print('intersection avec {} {} {} {} et {} {} {} {}'.format(p1.lat,p1.lon,q1.lat,q1.lon,p2.lat,p2.lon,q2.lat,q2.lon))
-            return inter
+            #print('intersection avec {} {} {} {} et {} {} {} {}'.format(p1.lat,p1.lon,q1.lat,q1.lon,p2.lat,p2.lon,q2.lat,q2.lon))
+            return inter,segment
         
-    return False
+    return False,False
 
 
 
@@ -170,10 +225,10 @@ def intersect_four_points_(A,B,C,D):
     return the intersection point of the line AB and line CD
     """
 
-    a = latlontri(A[0], A[1])
-    b = latlontri(B[0], B[1])
-    c = latlontri(C[0], C[1])
-    d = latlontri(D[0], D[1])
+    a = LatLontri(A[0], A[1])
+    b = LatLontri(B[0], B[1])
+    c = LatLontri(C[0], C[1])
+    d = LatLontri(D[0], D[1])
 
     f = a.intersection( b, c,d)
     # probleme d'antipode. Si le point d'intersection est à plus de 10000km, il y a un probleme
@@ -183,13 +238,25 @@ def intersect_four_points_(A,B,C,D):
     return [f.lat, f.lon]
 
 
+def intersect_four_points_latlon(A,B,C,D):
+    """
+    return the intersection point of the line AB and line CD
+    """
+
+    f = A.intersection( B, C,D)
+    # probleme d'antipode. Si le point d'intersection est à plus de 10000km, il y a un probleme
+    if (f.distanceTo(A) > 10000)and (f.distanceTo(A) > 10000):
+        f= f.antipode()
+
+    return f
+
 def intersect_points_bearings(A, bearing_A, B, bearing_B):
     """ return the intersection point C of the two lines
     from A with bearing_A to B with bearing_B
     """
  ##   print('tmp {} bearing_tmp {} C {} bearing_C {}'.format(A, bearing_A, B, bearing_B))
-    a = LatLon(A[0], A[1])
-    b = LatLon(B[0], B[1])
+    a = LatLontri(A[0], A[1])
+    b = LatLontri(B[0], B[1])
 
     c = a.intersection(bearing_A, b, bearing_B)
 
@@ -198,13 +265,28 @@ def intersect_points_bearings(A, bearing_A, B, bearing_B):
         c= c.antipode()
     return [c.lat, c.lon]
 
+def intersect_points_bearings_latlon(A, bearing_A, B, bearing_B):
+    """ return the intersection point C of the two lines
+    from A with bearing_A to B with bearing_B
+    """
+ ##   print('tmp {} bearing_tmp {} C {} bearing_C {}'.format(A, bearing_A, B, bearing_B))
+    c = A.intersection(bearing_A, B, bearing_B)
+
+          # probleme d'antipode. Si le point d'intersection est à plus de 10000km, il y a un probleme
+    if (c.distanceTo(A) > 10000)and (c.distanceTo(A) > 10000):
+        c= c.antipode()
+    return c
 
 def main():
+    print('test_LatLontrigo2nvector() {}'.format(test_LatLontrigo2nvector()))
+
     A = (48.844781966005414, 2.354806246580006)
     B = (48.845476490908986, 2.3559582742434224)
     C = (48.844800522139515, 2.356945151087957)
     D = (48.84415592294359, 2.3565687535257593)
     E = (48.84395753653702, 2.355015706155173)
+
+
 
 #    print(getAngle(A, B, C))
     #   print(getBearing(A, B))
@@ -217,22 +299,22 @@ def main():
         B, inter, getDistance(B, inter)))
     iswithin(A, B, C)
 
-    p1= latlontri(1, 1)
-    q1= latlontri(10, 1)
-    p2= latlontri(1, 2)
-    q2= latlontri(10, 2)
+    p1= LatLontri(1, 1)
+    q1= LatLontri(10, 1)
+    p2= LatLontri(1, 2)
+    q2= LatLontri(10, 2)
     doIntersect(p1,q1,p2,q2)
     
-    p1= latlontri(10, 0)
-    q1= latlontri(0, 10)
-    p2= latlontri(0, 0)
-    q2= latlontri(10, 10)
+    p1= LatLontri(10, 0)
+    q1= LatLontri(0, 10)
+    p2= LatLontri(0, 0)
+    q2= LatLontri(10, 10)
     doIntersect(p1,q1,p2,q2)
     
-    p1= latlontri(-5, -5)
-    q1= latlontri(0, 0)
-    p2= latlontri(1, 1)
-    q2= latlontri(10, 10)
+    p1= LatLontri(-5, -5)
+    q1= LatLontri(0, 0)
+    p2= LatLontri(1, 1)
+    q2= LatLontri(10, 10)
     doIntersect(p1,q1,p2,q2)
     
 
