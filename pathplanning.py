@@ -9,8 +9,7 @@ from geopy.units import meters
 from pygeodesy.units import Lat
 from pygeodesy.sphericalTrigonometry import LatLon
 from pygeodesy.sphericalNvector import LatLon as LatLonsphericalNvector
-import pyproj
-from geopy import Point, distance
+#import pyproj
 from geopy.distance import geodesic
 from geopy import Point, distance
 from pygeodesy.points import *
@@ -38,15 +37,20 @@ class PathPlanning:
     def __init__(self, points,  emprise_laterale, emprise_longitudinale, recouvrement_lat=0., recouvrement_lon=0.,orientation=None,start_point=None):
         """Pathplanning generates waypoints """
 
+        if not isconvex(points):
+            print("points must form a convex shape")
+            sys.exit(-1)
+
         self.points = points
         self.nb_points = len(self.points)
         if debug : print('Les points de ce pathplanning sont {}'.format(self.points))
         self.waypoint_list = []
         self.distances = []
         self.bearings = []
-        #self.clockwise = isclockwise(points)
-        #self.isconvex =  isconvex(self.points)
-
+        if isclockwise(points):
+            self.othogonal_increment=90
+        else:
+            self.othogonal_increment=-90
         
         self.orientation = orientation
         self.start_point=start_point
@@ -67,8 +71,10 @@ class PathPlanning:
         for i in range(len(points)-1):
             if debug :print('point lat {} lon {}'.format(points[i].lat,points[i].lon))
             self.distances.append(points[i].distanceTo(points[i+1]))
-            self.bearings.append(getBearing_latlon(points[i], points[i+1]))
-            if debug: print('distance {} bearing {}'.format(getDistance(points[i], points[i+1]),getBearing(points[i], points[i+1])))
+            self.bearings.append(points[i].compassAngleTo(points[i+1]))
+            
+            if debug: print('distance {} bearing {}'.format(getDistance(points[i], points[i+1]),points[i].compassAngleTo(points[i+1])))
+            
     
         if debug : print('bearings {}'.format(self.bearings))
         if debug : print('distances {}'.format(self.distances))
@@ -121,11 +127,11 @@ class PathPlanning:
                 else:
                     # C sur la parrallelle au prochain coté décalé de ce qu'il faut ! 
                     #  Sans doute -90 parfois. A voir comment savoir dans quel sens on tourne
-                    C = point_distance_bearing_to_new_point_latlon(point, self.increment_lat*round_nb, self.bearings[i]+90)
+                    C = point_distance_bearing_to_new_point_latlon(point, self.increment_lat*round_nb, self.bearings[i]+self.othogonal_increment)
 
                      # dernier point de la boucle, il faut encore retire un peu
                     if i == self.nb_points:
-                        C = point_distance_bearing_to_new_point_latlon(self.points[i], self.increment_lat*(round_nb-1)*10, self.bearings[i]+90)
+                        C = point_distance_bearing_to_new_point_latlon(self.points[i], self.increment_lat*(round_nb-1)*10, self.bearings[i]+self.othogonal_increment)
                         print('pouf')
 
                     new_point= intersect_points_bearings_latlon(tmp_point,self.bearings[i-1],C,self.bearings[i])
@@ -164,7 +170,7 @@ class PathPlanning:
                         # sinon, on trouve l'intersection avec la parrallele au segment décalé de self.increment_lat
                         distance = (H-self.increment_lat)/sin(radians(angle))
                         ### Le +90 depend si on est clockwise !!!!
-                        last_point = point_distance_bearing_to_new_point_latlon(tmp_point, distance, getBearing(tmp_point,new_point))
+                        last_point = point_distance_bearing_to_new_point_latlon(tmp_point, distance, tmp_point.compassAngleTo(new_point))
                         self.waypoint_list.append(WayPoint(new_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,text="Last"))
                         print('Dernier segment')
 
@@ -196,8 +202,8 @@ class PathPlanning:
         tmp_B = self.points[1]
         #tmp_B = self.points[1]
         # la direction initiale est celle de points[0] vers points[1]
-        direction_right = getBearing(tmp_A, tmp_B)
-        direction_left = getBearing(tmp_B, tmp_A)
+        direction_right = tmp_A.compassAngleTo(tmp_B)
+        direction_left = tmp_B.compassAngleTo(tmp_A)
                 
         
         tmp = None
@@ -205,8 +211,7 @@ class PathPlanning:
         self.waypoint_list.append(WayPoint(
             tmp_A, direction_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
 
-        self.waypoint_list.append(WayPoint(tmp_B, getBearing(
-            tmp_B, self.points[indice_droit+1]),
+        self.waypoint_list.append(WayPoint(tmp_B, tmp_B.compassAngleTo(self.points[indice_droit+1]),
             emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
         i = 0
 
@@ -215,14 +220,12 @@ class PathPlanning:
             #print('i {}'.format(i))
             #if i == 15:
             #    break
-            direction_ext_right = getBearing(
-                tmp_B, self.points[indice_droit+1])
-            direction_ext_left = getBearing(
-                tmp_A, self.points[indice_gauche-1])
+            direction_ext_right = tmp_B.compassAngleTo(self.points[indice_droit+1])
+            direction_ext_left = tmp_A.compassAngleT(self.points[indice_gauche-1])
 
             # Le point C est  sur la parralle à [tmp_A tmp_B]
             C = point_distance_bearing_to_new_point_latlon(
-                tmp_A, self.increment_lat, direction_right+90)
+                tmp_A, self.increment_lat, direction_right+othogonal_increment)
             # le point D est sur la ligne C avec son bearing et à distance d=10m sans importance
             D = point_distance_bearing_to_new_point_latlon(
                 C, 10, direction_left)
@@ -250,8 +253,7 @@ class PathPlanning:
                     if debug :  print('finish')
                     finish = True
                     break
-                direction_ext_right = getBearing(
-                    self.points[indice_droit], self.points[indice_droit+1])
+                direction_ext_right = self.points[indice_droit].compassAngleT(self.points[indice_droit+1])
 
                 intersect_right = intersect_four_points_latlon(
                 C, D, self.points[indice_droit], self.points[indice_droit+1])
@@ -271,10 +273,9 @@ class PathPlanning:
                     if debug :  print('finish')
                     finish = True
                     break
-                direction_ext_left = getBearing(
-                    self.points[indice_gauche], self.points[indice_gauche-1])
+                direction_ext_left = self.points[indice_gauche].compassAngleT(self.points[indice_gauche-1])
 
-                intersect_left = intersect_four_points_(
+                intersect_left = intersect_four_points_latlon(
                 C, D, self.points[indice_gauche], self.points[indice_gauche-1])
 
                 if not iswithinLatLontTri(intersect_left, self.points[indice_gauche], self.points[indice_gauche-1]):
@@ -364,19 +365,6 @@ def main(args):
     start_point_list.append((48.84508549389749, 2.356311190101862))
     #start_point = (48.84361006276646, 2.3559057454019223)
 
-    A = (48.844781966005414, 2.354806246580006)
-    B = (48.845476490908986, 2.3559582742434224)
-    C = (48.844800522139515, 2.356945151087957)
-    D = (48.84415592294359, 2.3565687535257593)
-    E = (48.84395753653702, 2.355015706155173)
-    F = (48.844565798460536, 2.3552507666007094)
-
- #   points = [E, A, B, C, D]
-    points = deque([A, B, C, D, E])
-    #points = deque([ E,A,B, C, D])
-#    points = deque([A, B, C, D, E,F])
-   # points = [A, B, C, D]
-    #points = deque( [A, B, C])
 
     a=LatLon(48.844781966005414, 2.354806246580006)
     b=LatLon(48.845476490908986, 2.3559582742434224)
@@ -386,16 +374,11 @@ def main(args):
     f=LatLon(48.844565798460536, 2.3552507666007094)
     
 
-#    points = [E, A, B, C, D]
-    #points = deque([A, B, C, D, E])
- #   points = deque([ E,A,B, C, D])
-   # points = deque([A, B, C, D, E,F])
-   # points = [A, B, C, D]
-#    points = deque( [A, B, C])
 
     points = deque([f,e,d,c,b,a])
     points = deque([a,b,c])
     points = deque([a,b,c,d])
+    points = deque([d,c,b,a])
  #   points = deque([a,b,c,d,e])
 #    points = deque([a,b,c,d,e,f])
     

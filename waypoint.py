@@ -57,21 +57,21 @@ class WayPoint:
         #print("angle "+str(angle + self.orientation))
         #self.X0 = [tmp.latitude, tmp.longitude]
         
-        self.X0 = point_distance_bearing_to_new_point(point= [self.latitude, self.longitude],
+        self.X0 = point_distance_bearing_to_new_point_latlon(point= self.point,
         distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=angle + self.orientation)
         
         #tmp = dist.destination(point=Point(
         #    self.latitude, self.longitude), bearing=180-angle + self.orientation)
 
         #print("angle "+str(180-angle + self.orientation))
-        self.X1 = point_distance_bearing_to_new_point(point= [self.latitude, self.longitude],
+        self.X1 = point_distance_bearing_to_new_point_latlon(point= self.point,
         distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=180-angle + self.orientation)
 
      #   tmp = dist.destination(point=Point(
      #       self.latitude, self.longitude), bearing=180+angle + self.orientation)
         #print("angle "+str(180+angle + self.orientation))
     #    self.X2 = [tmp.latitude, tmp.longitude]
-        self.X2 = point_distance_bearing_to_new_point(point= [self.latitude, self.longitude],
+        self.X2 = point_distance_bearing_to_new_point_latlon(point= self.point,
         distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=180+angle + self.orientation)
 
   #      tmp = dist.destination(point=Point(
@@ -79,7 +79,7 @@ class WayPoint:
         #print("angle "+str(360-angle + self.orientation))
 #        self.X3 = [tmp.latitude, tmp.longitude]
 
-        self.X3=point_distance_bearing_to_new_point(point= [self.latitude, self.longitude],
+        self.X3=point_distance_bearing_to_new_point_latlon(point= self.point,
         distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=360-angle + self.orientation)
 
 def main(args):
