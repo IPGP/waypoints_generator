@@ -99,7 +99,7 @@ class WaypointMap:
         icon_black = folium.features.CustomIcon(
             icon_image=self.WP_icon_path_black_path, icon_size=(25, 25))
 
-        folium.Marker(location=waypoint.location, tooltip=str(
+        folium.Marker(location=waypoint.location, tooltip=str(waypoint.text)+ str( 
             self.waypoint_nb-1)+"<br>"+str(waypoint.location[0])+"<br>"+str(waypoint.location[1]), icon=icon_black).add_to(self.the_map)
 
         # Les markers de l'emprise

@@ -16,6 +16,8 @@ from pygeodesy.sphericalNvector import LatLon as LatLonsphericalNvector
 debug = False
 debug = True
 
+
+
 def LatLontrigo2nvector(A):
     return(LatLonsphericalNvector(A.lat,A.lon))
 
@@ -50,7 +52,14 @@ def getAnglelatlon(a, b,c):
 def getDistance(A, B):
     return geodesic(A, B).m
 
+def distance_to_line(A,B,C):
+    """ return the distance of A to line BC"""
+    CA=C.distanceTo(A)
+    CB=C.distanceTo(B)
+    BA=B.distanceTo(A)
 
+    BH = (CA*CA-CB*CB-BA*BA)/(2*CB)
+    return sqrt(BA*BA-BH*BH)
 
 
 def point_distance_bearing_to_new_point_latlon(point, distance, bearing):
@@ -90,6 +99,9 @@ def onSegment(p, q, r):
     return False
  
 
+def orientation_value(p, q, r):
+    val = (float(q.lon - p.lon) * (r.lat - q.lat)) - (float(q.lat - p.lat) * (r.lon - q.lon))
+    return val
 def orientation(p, q, r):
     # to find the orientation of an ordered triplet (p,q,r)
     # function returns the following values:

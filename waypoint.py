@@ -13,7 +13,7 @@ from pygeodesy.sphericalTrigonometry import LatLon
 class WayPoint:
     "Waypoint class"
 
-    def __init__(self, point, orientation, emprise_laterale=100, emprise_longitudinale=50,text=None):
+    def __init__(self, point, orientation, emprise_laterale=100, emprise_longitudinale=50,wp_text=''):
         
         # point is a latlontri
         self.point = point
@@ -23,7 +23,9 @@ class WayPoint:
 
         self.altitude_absolue_sol = None
         self.altitude_relative_drone = None
-        self.text=text
+        self.text=str(wp_text)
+        if len(self.text)>0:
+            self.text=self.text+' '
         # self.hauteur_sol
         self.emprise_laterale = emprise_laterale  # en mètres
         self.emprise_longitudinale = emprise_longitudinale  # en mètres
