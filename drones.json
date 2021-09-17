@@ -1,0 +1,31 @@
+{
+  "Drones": [
+    {
+      "brand": "DJI",
+	  "name": "Phantom4 RTK",
+      "cameras": [
+        {
+          "camera": "Phantom4 RTK",
+          "resolution_X": 1200,
+          "resolution_Y": 4000
+        }
+      ]
+    },
+    {
+      "brand": "DJI",
+      "name": "Matrice 210 RTK V2",
+      "cameras": [
+        {
+          "camera": "X7",
+          "resolution_X": 1200,
+          "resolution_Y": 4000
+        },
+        {
+          "camera": "Multispectral",
+          "resolution_X": 3000,
+          "resolution_Y": 4000
+        }
+      ]
+    }
+  ]
+}
