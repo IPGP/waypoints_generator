@@ -169,9 +169,9 @@ class PathPlanning:
                     #print(' tmp_point {} {} new_point {} {} new_point_bis {} {}'.format(tmp_point.lat, tmp_point.lon, new_point.lat, new_point.lon, new_point_bis.lat, new_point_bis.lon))
                     if tmp_point.distanceTo(new_point) >tmp_point.distanceTo(new_point_bis)  and abs(tmp_point.compassAngleTo(new_point) - tmp_point.compassAngleTo((new_point_bis))<2):
                     #if tmp_point.distanceTo(new_point) >tmp_point.distanceTo(new_point_bis) :
-                        print('tmp_point.compassAngleTo(new_point) {} tmp_point.compassAngleTo((new_point_bis)) {}'.format(tmp_point.compassAngleTo(new_point) , tmp_point.compassAngleTo((new_point_bis))))
-                        print('tmp_point.distanceTo(new_point) {} tmp_point.distanceTo(new_point_bis){}'.format(tmp_point.distanceTo(new_point),tmp_point.distanceTo(new_point_bis)))
-                        print(' tmp_point {} {} new_point {} {} new_point_bis {} {}'.format(tmp_point.lat, tmp_point.lon, new_point.lat, new_point.lon, new_point_bis.lat, new_point_bis.lon))
+                        #print('tmp_point.compassAngleTo(new_point) {} tmp_point.compassAngleTo((new_point_bis)) {}'.format(tmp_point.compassAngleTo(new_point) , tmp_point.compassAngleTo((new_point_bis))))
+                       # print('tmp_point.distanceTo(new_point) {} tmp_point.distanceTo(new_point_bis){}'.format(tmp_point.distanceTo(new_point),tmp_point.distanceTo(new_point_bis)))
+                       # print(' tmp_point {} {} new_point {} {} new_point_bis {} {}'.format(tmp_point.lat, tmp_point.lon, new_point.lat, new_point.lon, new_point_bis.lat, new_point_bis.lon))
                        # self.waypoint_list.append(WayPoint(C, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="C"))
                        # self.waypoint_list.append(WayPoint(D, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="D"))
                        # self.waypoint_list.append(WayPoint(E, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="E"))
@@ -191,11 +191,12 @@ class PathPlanning:
                     new_bearing = tmp_point.compassAngleTo(new_point)
                     angle_bearing=self.bearings[i-1]
 
-                    if debug: print('bearing tmp to new {}'.format(new_bearing))
-                    if debug: print('bearing angle      {}'.format(angle_bearing))
+                    print('bearing tmp to new {}  bearing angle {}'.format(new_bearing,angle_bearing))
                     
                     if abs(new_bearing-angle_bearing) >1:
                         print('changement de sens donc on arrete ici')
+                        print(' tmp_point {} {} new_point {} {} new_point_bis {} {}'.format(tmp_point.lat, tmp_point.lon, new_point.lat, new_point.lon, new_point_bis.lat, new_point_bis.lon))
+
                         finish = True
                         break
 
