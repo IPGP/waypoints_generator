@@ -172,8 +172,9 @@ class WaypointMap:
         self.the_map.add_child(folium.vector_layers.Polygon(locations=locations, color='#348feb', fill=True,
                                                             fill_color='#34e5eb', fill_opacity=0.3, weight=2, popup=""))
 
-    def export_to_file(self, filename='./carte.html'):
+    def export_to_file(self, filename):
         """Export waypoint map to file"""
+        if filename:filename+='.html'
         print('{} waypoint exportés'.format(self.waypoint_nb))
 
         self.the_map.fit_bounds(self.the_map.get_bounds(), padding=(5, 5))

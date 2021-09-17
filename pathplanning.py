@@ -43,8 +43,7 @@ class PathPlanning:
 
         self.points = points
         self.nb_points = len(self.points)
-        if debug:
-            print('Les points de ce pathplanning sont {}'.format(self.points))
+        if debug: print('Les points de ce pathplanning sont {}'.format(self.points))
         self.waypoint_list = []
         self.distances = []
         self.bearings = []
@@ -87,6 +86,7 @@ class PathPlanning:
 
     def generate_path(self, style):
         """choix du syle du path"""
+        self.style=style
         if style == "snail":
             self.generate_path_snail()
         elif style == "normal":
@@ -100,7 +100,7 @@ class PathPlanning:
 
         round_nb = 0
         j = 0
-        # keep the created segments
+        # keep the created segments with their offset
         segments_list = []
 
         finish = False
@@ -127,11 +127,19 @@ class PathPlanning:
                     self.waypoint_list.append(WayPoint(new_point, self.bearings[i],
                                                        emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text=i))
 
+                    C = point_distance_bearing_to_new_point_latlon(
+                        point, self.increment_lat*round_nb, self.bearings[i]+self.othogonal_increment)
+                    D = point_distance_bearing_to_new_point_latlon(C, 50, self.bearings[i])
+                    #print('distance entre C et tmp_point {}'.format(distance_to_line(tmp_point, C, D)))
+
                 # apres le 1er tour
                 else:
                     # C sur la parrallelle au prochain coté décalé de self.increment_lat*round_nb
+                    middle_of_base_segment = point_distance_bearing_to_new_point_latlon(
+                        point, self.distances[i]/2, self.bearings[i])
+
                     C = point_distance_bearing_to_new_point_latlon(
-                        point, self.increment_lat*round_nb, self.bearings[i]+self.othogonal_increment)
+                        middle_of_base_segment, self.increment_lat*round_nb, self.bearings[i]+self.othogonal_increment)
 
                     # dernier point de la boucle, il faut encore retire un peu
                     # if i == self.nb_points:
@@ -139,46 +147,47 @@ class PathPlanning:
                     #   print('pouf')
 
                     # 15m est une valeur completement aléatoire !
-                    D = point_distance_bearing_to_new_point_latlon(C, 105, self.bearings[i])
-                    print('distance entre C et tmp_point {}'.format(distance_to_line(tmp_point, C, D)))
+                    D = point_distance_bearing_to_new_point_latlon(C, 50, self.bearings[i])
+                    #print('distance entre C et tmp_point {}'.format(distance_to_line(tmp_point, C, D)))
                     new_point = intersect_points_bearings_latlon(tmp_point, self.bearings[i-1], C, self.bearings[i])
-                    # Si on est trop près de la nouvelle parrallele on stop
-                    if (distance_to_line(tmp_point, C, D) < self.increment_lat) and False:
-                    #if tmp_point.compassAngleTo(new_point) != :                        
-                        print('tmp is too close to last parrallel line')
+                    new_bearing = tmp_point.compassAngleTo(new_point)
+                    angle_bearing=self.bearings[i-1]
+                    if debug: print('bearing tmp to new {}'.format(new_bearing))
+                    if debug: print('bearing angle      {}'.format(angle_bearing))
+                    if abs(new_bearing-angle_bearing) >1:
+                        print('changement de sens donc on arrete ici')
+                        finish = True
+                        break
+
+                    """if j > 20 :
                         self.waypoint_list.append(WayPoint(C, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="C"))
                         self.waypoint_list.append(WayPoint(D, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="D"))
                         self.waypoint_list.append(WayPoint(tmp_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="tmp_point"))
                         self.waypoint_list.append(WayPoint(new_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="new_point"))
-
+                        #from IPython import embed; embed()
                         finish = True
-                        break
+                        break """
 
-                    # si la distance au nouveau point est très petite, c'est fini
-                    #print('getDistance(tmp_point,new_point) {}'.format(getDistance(tmp_point,new_point)))
-                    #print('tmp_point {} new_point {}'.format(tmp_point,new_point))
-                    #tmp=latlontri(tmp_point[0], tmp_point[1])
-                    #new=latlontri(new_point[0], new_point[1])
                     # on cherche si le nouveau segment coupe un des précédants sans que ce soit le dernier et en partant en arrière
-                    intersec_point, segment = intersect_segments_list(
-                        [tmp_point, new_point], segments_list[:-1])
-                    if intersec_point:
+                    intersec_point, segment = intersect_segments_list([tmp_point, new_point], segments_list[:-1])
+                    if intersec_point and ( onSegment(segment[0],new_point,segment[1] )):
                         print('Fini intersection avec segment déja créé')
                         print('Point {} {} C {} {}'.format(point.lat, point.lon, C.lat, C.lon))
-                        print('self.increment_lat*round_nb {}'.format(self.increment_lat*round_nb))
-                        print('angle {}'.format(self.bearings[i]+self.othogonal_increment))
-                        print('intersc {} {} tmp_point {} {} new_point {} {}'.format(point.lat, point.lon, tmp_point.lat, tmp_point.lon, new_point.lat, new_point.lon))
+                        print('intersc {} {} tmp_point {} {} new_point {} {}'.format(intersec_point.lat, intersec_point.lon, tmp_point.lat, tmp_point.lon, new_point.lat, new_point.lon))
                         print('intersc_segment {} {} {} {}'.format(segment[0].lat, segment[0].lon, segment[1].lat, segment[1].lon))
-                        #self.waypoint_list.append(WayPoint(C, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="C"))
-                        #self.waypoint_list.append(WayPoint(D, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="D"))
-                        #self.waypoint_list.append(WayPoint(tmp_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="tmp_point"))
-                        #self.waypoint_list.append(WayPoint(intersec_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="intersec_point"))
+                        
 
                         # il faut trouver le dernier point
 
+                        #le nouveau point coupe la parralle a un vieux segment. Il faut s'arretera l'intersection 
+                        if not onSegment(segment[0],new_point,segment[1]):
+                            print('le nouveau point coupe la parralle a un vieux segment')
+                            self.waypoint_list.append(WayPoint(intersec_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="Last"))
+                            finish = True
+                            break
+
                         # on teste si la droite parralelle au segment coupé passant par tmp_point est plus éloigné de self.increment_lat. si ce n'est pas le cas alors
                         # tmp est le dernier point
-                        # if self.clockwise:
                         # on trouve l'angle entre le segment coupé et [tmp,new]
 
                         angle = getAnglelatlon(segment[1], intersec_point, tmp_point)
@@ -200,6 +209,7 @@ class PathPlanning:
                     self.waypoint_list.append(WayPoint(
                         new_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
                 segments_list.append([tmp_point, new_point])
+#                segments_list.append([C, D])
                 tmp_point = new_point
                 i += 1
 
@@ -255,8 +265,6 @@ class PathPlanning:
             #        C, direction_ext_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,text="C"))
 
 
-#            intersect_right = intersect_points_bearings(
-#                C, direction_right, tmp_B, direction_ext_right)
 
             intersect_right = intersect_four_points_latlon(
                 C, D, tmp_B, self.points[indice_droit+1])
@@ -375,8 +383,9 @@ class PathPlanning:
         for i in range(len(distance_list[:-1])):
             total_distance += getDistance(distance_list[i], distance_list[i+1])
             nb_turns += 1
-        print('Total distance is {}m with {} turns'.format(
-            total_distance, nb_turns))
+        print('############################################################')
+        print('{} Total distance is {}m with {} turns'.format(self.style, total_distance, nb_turns))
+        print('############################################################')
 
     def export_to_kml(self):
         """ Export waypoints to kml for DJI UAV"""
@@ -405,10 +414,10 @@ def main(args):
 #gi    points = deque([a, b, c, d, e])
 #    points = deque([a,b,c,d,e,f])
 
-    # points.rotate(1)
+    points.rotate(1)
 
-    emprise_laterale = 50
-    emprise_longitudinale = 20
+    emprise_laterale = 25
+    emprise_longitudinale = 10
 
     # on fait varier les start_point
     #    for start_point in start_point_list:
@@ -420,28 +429,45 @@ def main(args):
     Path_generator = PathPlanning(points=points,  emprise_laterale=emprise_laterale,
                                   emprise_longitudinale=emprise_longitudinale, start_point=start_point, recouvrement_lat=0.8, recouvrement_lon=0.5)
     # pp.find_best_orientation()
-    Path_generator.generate_path("snail")
+#    Path_generator.generate_path("snail")
+    Path_generator.generate_path("normal")
 
-    the_map = WaypointMap(start_point)
+#    the_map = WaypointMap(start_point)
     the_map = WaypointMap()
-
     # on place les limites de la zone
     the_map.add_polygon(points=points, color='#ff7800', fill=True,
                         fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
-
     # On ajoute les waypoint qui ont été trouvés a la carte
     for wp in Path_generator.waypoint_list:
         the_map.add_waypoint(wp, direction=False, footprint=False)
-
     the_map.add_path_waypoints(Path_generator.waypoint_list)
-
     # Exportation de la carte
-    the_map.export_to_file()
+    the_map.export_to_file('normal')
 
     #print('Start point is {}'.format(points[0]))
     # Path_generator.export_to_kml()
     Path_generator.compute_length_and_turns()
 
+    Path_generator_snail = PathPlanning(points=points,  emprise_laterale=emprise_laterale,
+                                  emprise_longitudinale=emprise_longitudinale, start_point=start_point, recouvrement_lat=0.8, recouvrement_lon=0.5)
+   
+    Path_generator_snail.generate_path("snail")
+
+#    the_map = WaypointMap(start_point)
+    the_map_snail = WaypointMap()
+    # on place les limites de la zone
+    the_map_snail.add_polygon(points=points, color='#ff7800', fill=True,
+                        fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
+    # On ajoute les waypoint qui ont été trouvés a la carte
+    for wp in Path_generator_snail.waypoint_list:
+        the_map_snail.add_waypoint(wp, direction=False, footprint=False)
+    the_map_snail.add_path_waypoints(Path_generator_snail.waypoint_list)
+    # Exportation de la carte
+    the_map_snail.export_to_file('snail')
+
+    #print('Start point is {}'.format(points[0]))
+    # Path_generator.export_to_kml()
+    Path_generator_snail.compute_length_and_turns()
 
     # on fait tourner le 1er point
     # points.rotate(1)

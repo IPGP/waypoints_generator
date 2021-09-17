@@ -59,37 +59,42 @@ class WayPoint:
         #print("angle "+str(angle + self.orientation))
         #self.X0 = [tmp.latitude, tmp.longitude]
         
-        self.X0 = point_distance_bearing_to_new_point_latlon(point= self.point,
+        self.X0_latlon = point_distance_bearing_to_new_point_latlon(point= self.point,
         distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=angle + self.orientation)
-        
+
+        self.X0 = [self.X0_latlon.lat,self.X0_latlon.lon]
+
         #tmp = dist.destination(point=Point(
         #    self.latitude, self.longitude), bearing=180-angle + self.orientation)
 
         #print("angle "+str(180-angle + self.orientation))
-        self.X1 = point_distance_bearing_to_new_point_latlon(point= self.point,
+        self.X1_latlon = point_distance_bearing_to_new_point_latlon(point= self.point,
         distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=180-angle + self.orientation)
+        self.X1 = [self.X1_latlon.lat,self.X1_latlon.lon]
 
      #   tmp = dist.destination(point=Point(
      #       self.latitude, self.longitude), bearing=180+angle + self.orientation)
         #print("angle "+str(180+angle + self.orientation))
     #    self.X2 = [tmp.latitude, tmp.longitude]
-        self.X2 = point_distance_bearing_to_new_point_latlon(point= self.point,
+        self.X2_latlon = point_distance_bearing_to_new_point_latlon(point= self.point,
         distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=180+angle + self.orientation)
+        self.X2 = [self.X2_latlon.lat,self.X2_latlon.lon]
 
   #      tmp = dist.destination(point=Point(
  #           self.latitude, self.longitude), bearing=360-angle + self.orientation)
         #print("angle "+str(360-angle + self.orientation))
 #        self.X3 = [tmp.latitude, tmp.longitude]
 
-        self.X3=point_distance_bearing_to_new_point_latlon(point= self.point,
+        self.X3_latlon=point_distance_bearing_to_new_point_latlon(point= self.point,
         distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=360-angle + self.orientation)
+        self.X3 = [self.X3_latlon.lat,self.X3_latlon.lon]
 
 def main(args):
 
     lat = 48.84482270388685
     lon = 2.3562098704389163
 
-    IPGP = WayPoint([lat, lon],90)
+    IPGP = WayPoint(LatLon(lat, lon),90)
     print(IPGP.X0)
     print(IPGP.X1)
     print(IPGP.X2)
