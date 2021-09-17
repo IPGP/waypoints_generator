@@ -132,6 +132,10 @@ def orientation(p, q, r):
 # the line segment 'p1q1' and 'p2q2' intersect.
 # false if Collinear
 def doIntersect(p1,q1,p2,q2):
+
+    if p1.isequalTo(p2,eps=0.01)or p1.isequalTo(q2,eps=0.01) or q1.isequalTo(p2,eps=0.01) or q1.isequalTo(q2,eps=0.01):
+        #print("Same points")
+        return False,False
      
     # Find the 4 orientations required for
     # the general and special cases
@@ -145,6 +149,7 @@ def doIntersect(p1,q1,p2,q2):
     o3 = orientation(p2, q2, p1)
     o4 = orientation(p2, q2, q1)
  
+
     # General case
     if ((o1 != o2) and (o3 != o4)):
         inter = p1.intersection( q1,p2,q2)
@@ -152,6 +157,8 @@ def doIntersect(p1,q1,p2,q2):
         #if (inter.distanceTo(p1) > 10000)and (inter.distanceTo(p1) > 10000):
             #inter= inter.antipode()
         #return inter
+        if (inter.distanceTo(p1) > 10000)and (inter.distanceTo(q2) > 10000):
+            inter= inter.antipode()
         return inter,(p2,q2)
  
     # Special Cases
@@ -191,9 +198,6 @@ def intersect_segments_list(new_vector, segments_list):
             return inter,segment
         
     return False,False
-
-
-
 
 
 def intersect_four_points_latlon(A,B,C,D):
