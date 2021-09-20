@@ -104,6 +104,15 @@ class PathPlanning:
         segments_list = []
         CD_segments_list = []
 
+        # the stop condition
+        lock_points = [False  for i in range(self.nb_points)]
+
+        # Si finish 
+        # Any fait un OR sur toute la liste
+        # OR operation - Using any()
+        # AND Operation - Using all()
+        finish_condition=all(lock_points)
+
         finish = False
         # on parcours tous les points
         while not finish:
