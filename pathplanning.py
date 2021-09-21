@@ -69,15 +69,13 @@ class PathPlanning:
         points.append(self.points[0])
 
         for i in range(len(points)-1):
-            if debug:
-                print('point lat {} lon {}'.format(
-                    points[i].lat, points[i].lon))
+            if debug: print('point lat {} lon {}'.format(points[i].lat, points[i].lon))
+
             self.distances.append(points[i].distanceTo(points[i+1]))
+            #point.l=
             self.bearings.append(points[i].compassAngleTo(points[i+1]))
 
-            if debug:
-                print('distance {} bearing {}'.format(getDistance(
-                    points[i], points[i+1]), points[i].compassAngleTo(points[i+1])))
+
 
         if debug:
             print('bearings {}'.format(self.bearings))
@@ -92,6 +90,13 @@ class PathPlanning:
         elif style == "normal":
             self.generate_path_normal()
 
+
+
+    def generate_path_espiral(self):
+        """ Crée un parcours de type escargot """
+        for point in self.points:
+            print(point)
+
     def generate_path_snail(self):
         """ Crée un parcours de type escargot """
 
@@ -104,6 +109,9 @@ class PathPlanning:
         segments_list = []
         CD_segments_list = []
 
+        finish=False
+
+        # Each time we create a new waypoint,  lock_points is initialise whith False
         # the stop condition
         lock_points = [False  for i in range(self.nb_points)]
 
@@ -113,12 +121,18 @@ class PathPlanning:
         # AND Operation - Using all()
         finish_condition=all(lock_points)
 
-        finish = False
         # on parcours tous les points
+#        while not finish_condition:
         while not finish:
             # i va décrire tous les points
             i = 0
             for point in self.points:
+                print(i)
+                if i == self.nb_points-1:
+                    next_point = self.points[0]
+                else:
+                    next_point = self.points[i+1]
+                
                 # On ne fait rien pour le premier point
                 j += 1
                 if round_nb == 0:
@@ -126,14 +140,12 @@ class PathPlanning:
                     #print('new_point is {} points[i] is {}'.format(new_point,self.points[i]))
 
                     # on change pour le dernier point
-                    if i == len(self.points):
+                    if i == self.nb_points:
                         new_point = point_distance_bearing_to_new_point_latlon(
-                            self.points[0], 50, self.bearings[i]+180)
-#                        print('self.bearings[i]+180 {}'.format(self.bearings[i]+180))
+                            next_point, 50, self.bearings[i]+180)
 
                     #from IPython import embed; embed()
 
-                    # Check if new_point is inside limits"
                     self.waypoint_list.append(WayPoint(new_point, self.bearings[i],
                                                        emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text=i))
 
@@ -142,30 +154,36 @@ class PathPlanning:
                     D = point_distance_bearing_to_new_point_latlon(C, 50, self.bearings[i])
                     #print('distance entre C et tmp_point {}'.format(distance_to_line(tmp_point, C, D)))
 
-                # apres le 1er tour
+                # After first rounf of all points
                 else:
-                    # C sur la parrallelle au prochain coté décalé de self.increment_lat*round_nb
+                    # middle_of_base_segment is on the middle of [point next_point] segment
                     middle_of_base_segment = point_distance_bearing_to_new_point_latlon(
                         point, self.distances[i]/2, self.bearings[i])
 
+                    # C is on the parrall line to [point next_point] shifted of self.increment_lat*round_nb
                     C = point_distance_bearing_to_new_point_latlon(
                         middle_of_base_segment, self.increment_lat*round_nb, self.bearings[i]+self.othogonal_increment)
 
-                    # 50m est une valeur completement aléatoire !
+                    # D is on the "C line". 50 meters has no real meaning except for creating a second point on the line
                     D = point_distance_bearing_to_new_point_latlon(C, 50, self.bearings[i])
 
                     #print('distance entre C et tmp_point {}'.format(distance_to_line(tmp_point, C, D)))
+                    # new point is a potential waypoint, and the intersection of [CD] and last created waypoint with bearing of current point 
                     new_point = intersect_points_bearings_latlon(tmp_point, self.bearings[i-1], C, self.bearings[i])
 
+
+                    # E is  on the parrall line to [next_point new_next_point] shifted of self.increment_lat*round_nb
+                    # F is on the same "E line"'
+                    # new_point_bis is the intersection point if it exists of [EF] and last created waypoint with bearing of next point 
                     if i<self.nb_points-1:
-                        E = point_distance_bearing_to_new_point_latlon(self.points[i+1], self.increment_lat*round_nb, self.bearings[i+1]+self.othogonal_increment)
+                        E = point_distance_bearing_to_new_point_latlon(next_point, self.increment_lat*round_nb, self.bearings[i+1]+self.othogonal_increment)
                         # 50m est une valeur completement aléatoire !
                         F = point_distance_bearing_to_new_point_latlon(E, 50, self.bearings[i+1])
                         new_point_bis = intersect_points_bearings_latlon(tmp_point, self.bearings[i-1], E, self.bearings[i+1])
 
-                    #dernier point
+                    #last_point
                     else:
-                        E = point_distance_bearing_to_new_point_latlon(self.points[0], self.increment_lat*round_nb, self.bearings[0]+self.othogonal_increment)
+                        E = point_distance_bearing_to_new_point_latlon(next_point, self.increment_lat*(round_nb+1), self.bearings[0]+self.othogonal_increment)
                         # 50m est une valeur completement aléatoire !
                         F = point_distance_bearing_to_new_point_latlon(E, 50, self.bearings[0])
                         new_point_bis = intersect_points_bearings_latlon(tmp_point, self.bearings[i-1], E, self.bearings[0])
@@ -176,6 +194,8 @@ class PathPlanning:
                         #pass
 
                     #print(' tmp_point {} {} new_point {} {} new_point_bis {} {}'.format(tmp_point.lat, tmp_point.lon, new_point.lat, new_point.lon, new_point_bis.lat, new_point_bis.lon))
+
+                    # If new_point_bis is closer to tmp_point and inside [tmp_point new_point] segmnet, then the new point is new_point_bis
                     if tmp_point.distanceTo(new_point) >tmp_point.distanceTo(new_point_bis)  and abs(tmp_point.compassAngleTo(new_point) - tmp_point.compassAngleTo((new_point_bis))<2):
                     #if tmp_point.distanceTo(new_point) >tmp_point.distanceTo(new_point_bis) :
                         #print('tmp_point.compassAngleTo(new_point) {} tmp_point.compassAngleTo((new_point_bis)) {}'.format(tmp_point.compassAngleTo(new_point) , tmp_point.compassAngleTo((new_point_bis))))
@@ -192,6 +212,10 @@ class PathPlanning:
                         #finish = True
                         #break
                         new_point=new_point_bis
+
+
+                        # We have a lock with current point
+                        lock_points[i]=True
 
                     
 
@@ -278,6 +302,8 @@ class PathPlanning:
                 i += 1
 
             round_nb += 1
+            finish_condition=all(lock_points)
+
 #
 
     def generate_path_normal(self):
@@ -495,6 +521,7 @@ def main(args):
                                   emprise_longitudinale=emprise_longitudinale, start_point=start_point, recouvrement_lat=0.8, recouvrement_lon=0.5)
    
     Path_generator_snail.generate_path("snail")
+    #Path_generator_snail.generate_path("normal")
 
 #    the_map = WaypointMap(start_point)
     the_map_snail = WaypointMap()
@@ -504,6 +531,7 @@ def main(args):
     # On ajoute les waypoint qui ont été trouvés a la carte
     for wp in Path_generator_snail.waypoint_list:
         the_map_snail.add_waypoint(wp, direction=False, footprint=False)
+        
     the_map_snail.add_path_waypoints(Path_generator_snail.waypoint_list)
     # Exportation de la carte
     the_map_snail.export_to_file('snail')
@@ -512,6 +540,14 @@ def main(args):
     # Path_generator.export_to_kml()
     Path_generator_snail.compute_length_and_turns()
 
+    wp_list =[]
+    for wp in Path_generator_snail.waypoint_list:
+        wp_list.append(wp.latlon())
+                #print('({} {})'.format(wp.latitude, wp.longitude))
+
+    from IPython import embed; embed()
+
+    print(wp_list)
     # on fait tourner le 1er point
     # points.rotate(1)
 if __name__ == '__main__':

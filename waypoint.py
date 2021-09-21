@@ -31,7 +31,14 @@ class WayPoint:
         self.emprise_longitudinale = emprise_longitudinale  # en mètres
         self.orientation = orientation
         self.emprise_coordinates()
+        
+    def __str__(self):
+        return ('[{} {}]'.format(self.latitude, self.longitude))
 
+    def latlon(self):
+        return (self.latitude, self.longitude)
+
+ 
     def emprise_coordinates(self):
         """Détermine les coordonnées de l'emprise au sol à partir du point central, de l'orientation et des emprises
                    5 | 5
