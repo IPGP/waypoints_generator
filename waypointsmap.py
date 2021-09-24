@@ -5,7 +5,9 @@ from geopy import point
 from gpxplotter import create_folium_map
 from numpy.lib.function_base import append
 from waypoint import WayPoint
-from utils import getAngle
+from utils import getAnglelatlon
+from pygeodesy.sphericalTrigonometry import LatLon 
+from collections import deque
 
 # https://fontawesome.com/v4.7/icons/
 
@@ -138,6 +140,10 @@ class WaypointMap:
     def add_path_waypoints(self, waypoints_list):
         """Draw waypoints path on the map"""
 
+        # If we have only one waypoint exit now
+        if len(waypoints_list) <= 1:
+            return
+
         # FF0000 Red
         # 00FF00 Green
 
@@ -187,32 +193,34 @@ class WaypointMap:
 
 def main():
 
-    A = (48.844781966005414, 2.354806246580006)
-    B = (48.845476490908986, 2.3559582742434224)
-    C = (48.844800522139515, 2.356945151087957)
-    D = (48.84415592294359, 2.3565687535257593)
-    E = (48.84395753653702, 2.355015706155173)
+    a = LatLon(48.844781966005414, 2.354806246580006)
+    b = LatLon(48.845476490908986, 2.3559582742434224)
+    c = LatLon(48.844800522139515, 2.356945151087957)
+    d = LatLon(48.84415592294359, 2.3565687535257593)
+    e = LatLon(48.84395753653702, 2.355015706155173)
+    f = LatLon(48.844565798460536, 2.3552507666007094)
 
-    zone = [A, B, C, D, E]
+    zone = deque([a, b, c, d,e])
+    
 
     emprise_laterale = 50
     emprise_longitudinale = 25
 
     the_map = WaypointMap()
 
-    the_map.add_polygon(locations=zone, color='#ff7800', fill=True,
+    the_map.add_polygon(points=zone, color='#ff7800', fill=True,
                         fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
 
     lat = 48.84482270388685
     lon = 2.3562098704389163
 
-    orientation = getAngle(A, B, C)
-    loc_IPGP = [lat, lon]
+    orientation = getAnglelatlon(a, b,c)
+    loc_IPGP = LatLon(lat,lon)
     IPGP = WayPoint(loc_IPGP, orientation, emprise_laterale,
                     emprise_longitudinale)
 
     the_map.add_waypoint(IPGP)
-    the_map.export_to_file()
+    the_map.export_to_file('test.html')
 
 
 if __name__ == '__main__':

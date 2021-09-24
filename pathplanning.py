@@ -2,18 +2,19 @@
 # -*- coding:utf-8 -*-
 from math import *
 import sys
-# from branca.utilities import none_min
+from IPython.terminal.embed import InteractiveShellEmbed
 import geopy
 import copy
 from geopy.units import meters
+from numpy import angle
 from pygeodesy.units import Lat
 from pygeodesy.sphericalTrigonometry import LatLon
 from pygeodesy.sphericalNvector import LatLon as LatLonsphericalNvector
-#import pyproj
 from geopy.distance import geodesic
 from geopy import Point, distance
 from pygeodesy.points import *
-from pygeodesy.points import isclockwise, isconvex
+from pygeodesy.points import isclockwise, isconvex, centroidOf
+from itertools import cycle
 
 import waypoint
 from utils import *
@@ -29,6 +30,7 @@ from copy import copy
 
 
 debug = False
+debug = True
 
 
 class PathPlanning:
@@ -37,9 +39,9 @@ class PathPlanning:
     def __init__(self, points,  emprise_laterale, emprise_longitudinale, recouvrement_lat=0., recouvrement_lon=0., orientation=None, start_point=None):
         """Pathplanning generates waypoints """
 
-        if not isconvex(points):
-            print("points must form a convex shape")
-            sys.exit(-1)
+#        if not isconvex(points):
+#            print("points must form a convex shape")
+#            sys.exit(-1)
 
         self.points = points
         self.nb_points = len(self.points)
@@ -60,27 +62,54 @@ class PathPlanning:
         self.recouvrement_lon = recouvrement_lon  # pourcentage
         self.increment_lon = self.emprise_longitudinale*(1-recouvrement_lon)
         self.increment_lat = self.emprise_laterale*(1-recouvrement_lat)
-        self.compute_distances_and_bearings()
+        #print('recouvrement_lat {} self.emprise_laterale {} self.increment_lat {}'.format(recouvrement_lat,self.emprise_laterale,self.increment_lat))
+        self.compute_distances_and_bearings(self.points)
 
-    def compute_distances_and_bearings(self):
+    def old_compute_distances_and_bearings(self,input_points):
         """ compute distances between all points"""
         # last point == first point so don't compute
-        points = copy(self.points)
-        points.append(self.points[0])
+        points = copy(input_points)
+        points.append(input_points[0])
 
         for i in range(len(points)-1):
             if debug: print('point lat {} lon {}'.format(points[i].lat, points[i].lon))
-
             self.distances.append(points[i].distanceTo(points[i+1]))
-            #point.l=
             self.bearings.append(points[i].compassAngleTo(points[i+1]))
-
-
+            if i==0:
+                points[i].angle=getAnglelatlon(points[i-2],points[i],points[i+1])
+                points[i].l=points[i].distanceTo(points[i+1])
+            else:
+                points[i].angle=getAnglelatlon(points[i-1],points[i],points[i+1])
+                points[i].l=points[i].distanceTo(points[i+1])
 
         if debug:
             print('bearings {}'.format(self.bearings))
         if debug:
             print('distances {}'.format(self.distances))
+
+        sys.exit()
+ 
+
+    def compute_distances_and_bearings(self,input_points):
+        """ compute distances between all points"""
+        i=0
+        point_cycle = cycle(self.points)
+        next_point = next(point_cycle)
+        preceding_point=self.points[-1]
+        while i<self.nb_points:
+            this_point, next_point = next_point, next(point_cycle)
+            if debug: print('point lat {} lon {}'.format(this_point.lat, this_point.lon))
+            self.distances.append(this_point.distanceTo(next_point))
+            self.bearings.append(this_point.compassAngleTo(next_point))
+            this_point.angle=getAnglelatlon(preceding_point,this_point,next_point)
+            this_point.bearing=this_point.compassAngleTo(next_point)
+            this_point.l=this_point.distanceTo(next_point)
+            preceding_point = this_point
+            i +=1
+        if debug: print('bearings {}'.format(self.bearings))
+        if debug: print('distances {}'.format(self.distances))
+
+
 
     def generate_path(self, style):
         """choix du syle du path"""
@@ -89,13 +118,100 @@ class PathPlanning:
             self.generate_path_snail()
         elif style == "normal":
             self.generate_path_normal()
+        elif style == "espiral":
+            self.generate_path_espiral()
+            
 
 
 
     def generate_path_espiral(self):
         """ Crée un parcours de type escargot """
-        for point in self.points:
-            print(point)
+        
+        #   for point in self.points:
+        #    print('Point {} {} Angle {} Distance au suivant {}'.format(point.lat ,point.lon,point.angle,point.l))
+        
+        self.centroid =centroidOf(self.points,LatLon=LatLon)
+ 
+        #print('Centroid {} {} '.format(self.centroid.lat ,self.centroid.lon))
+        #self.waypoint_list.append(WayPoint(self.centroid,0, emprise_laterale=0, emprise_longitudinale=0, wp_text="Centroid"))
+                            
+        # Find shortest distance between self.centroid and each segments
+        distance_cp_min = float('inf')
+        i=0
+        point_cycle = cycle(self.points)
+        next_point = next(point_cycle)
+
+        while i<self.nb_points:
+            this_point, next_point = next_point, next(point_cycle)
+            tmp_distance_point =(self.centroid.nearestOn(this_point, next_point))
+            tmp_distance=tmp_distance_point.distanceTo(self.centroid)
+            #print('distance {} {} to {} {} is {}'.format(this_point.lat,this_point.lon,next_point.lat,next_point.lon,tmp_distance))
+            if tmp_distance <distance_cp_min : distance_cp_min = tmp_distance
+            i +=1
+        print('Centroid to each segment minimum distance is {}'.format(distance_cp_min))
+
+        ovx=self.emprise_laterale*self.recouvrement_lat
+        #### NB of Rings
+        dr = self.emprise_laterale-ovx
+        nb_of_rings = ceil((distance_cp_min - ovx)/(dr))
+
+        if nb_of_rings == 1:
+            print("un seul ring ! => exit")
+            sys.exit()
+
+        print('nb_of_rings is {}'.format(nb_of_rings))
+
+        #print('old ovx {} old dr {}'.format(self.increment_lat,dr))
+        new_ovx = (nb_of_rings*self.emprise_laterale-distance_cp_min)/(nb_of_rings-1)
+        new_dr = (distance_cp_min-self.emprise_laterale)/(nb_of_rings-1)
+        
+        #print('new ovx {} new dr {}'.format(ovx,dr))
+
+        j = 0
+        first_point = True
+        new_point = None
+
+        for ring in range(nb_of_rings):
+
+            for point in self.points:
+                
+                if first_point :
+                    print('max is {}'.format(max([0,-self.emprise_laterale/tan(radians(point.angle))])))
+                    d=point.l+max([0,-self.emprise_laterale/tan(radians(point.angle))])
+
+                else:
+                    d=point.l
+   
+                ovy=self.emprise_longitudinale*self.recouvrement_lon
+                nb_waypoints_per_segment=ceil((d-ovy)/(self.emprise_longitudinale-ovy))
+                new_ovy = (nb_waypoints_per_segment*self.emprise_longitudinale-point.l)/(nb_waypoints_per_segment-1)
+                new_dw = ((d - self.emprise_longitudinale)/(nb_waypoints_per_segment-1))
+                
+                #print('Nb de waypoints {} new_dw is {}'.format(nb_waypoints_per_segment,new_dw))
+                #print('Ly {} new_ovy{}'.format(self.emprise_longitudinale,new_ovy))
+
+                # pourquoi rajouter +1 ? Sinon ca ne marche pas...
+                for i in range(nb_waypoints_per_segment):
+                    
+                    if i == 0 :
+                        if first_point:
+                            first_point = False
+                            new_point= point_distance_bearing_to_new_point_latlon(point, (self.emprise_laterale)/2, point.bearing+self.othogonal_increment)
+                        else:    
+                            new_point_tmp= point_distance_bearing_to_new_point_latlon(point, (self.emprise_laterale)/2, point.bearing+self.othogonal_increment)
+                            new_point= point_distance_bearing_to_new_point_latlon(new_point_tmp, (self.emprise_longitudinale)/2, point.bearing)
+                    else:
+                        new_point= point_distance_bearing_to_new_point_latlon(last_point, new_dw, point.bearing)
+                    
+                    self.waypoint_list.append(WayPoint(new_point,point.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                    last_point=new_point
+                    j+=1
+
+            if ring == 0 :
+                return
+                
+
+
 
     def generate_path_snail(self):
         """ Crée un parcours de type escargot """
@@ -462,17 +578,14 @@ class PathPlanning:
         nb_turns = 0
 
         # start point
-        distance_list = [self.start_point]
+        tmp_point = self.start_point
 
         for waypoint in self.waypoint_list:
-            distance_list.append(waypoint.location)
-        distance_list.append(self.start_point)
-        # print(distance_list)
+            total_distance += tmp_point.distanceTo(waypoint.point)
+            tmp_point= waypoint.point
+            nb_turns +=1
 
-        # le "-1" pour ne pas aller trop loin
-        for i in range(len(distance_list[:-1])):
-            total_distance += getDistance(distance_list[i], distance_list[i+1])
-            nb_turns += 1
+
         print('############################################################')
         print('{} Total distance is {}m with {} turns'.format(self.style, total_distance, nb_turns))
         print('############################################################')
@@ -484,11 +597,13 @@ class PathPlanning:
 
 def main(args):
     """la fonction main"""
+
+    """ IPGP
     start_point_list = []
-    start_point_list.append((48.846383084057315, 2.356424447320463))
-    start_point_list.append((48.84415899803569, 2.353495475053588))
-    start_point_list.append((48.844599153918324, 2.355340339361402))
-    start_point_list.append((48.84508549389749, 2.356311190101862))
+    start_point_list.append(LatLon(48.846383084057315, 2.356424447320463))
+    start_point_list.append(LatLon(48.84415899803569, 2.353495475053588))
+    start_point_list.append(LatLon(48.844599153918324, 2.355340339361402))
+    start_point_list.append(LatLon(48.84508549389749, 2.356311190101862))
 
     a = LatLon(48.844781966005414, 2.354806246580006)
     b = LatLon(48.845476490908986, 2.3559582742434224)
@@ -496,32 +611,47 @@ def main(args):
     d = LatLon(48.84415592294359, 2.3565687535257593)
     e = LatLon(48.84395753653702, 2.355015706155173)
     f = LatLon(48.844565798460536, 2.3552507666007094)
+    """
 
-    points = deque([f, e, d, c, b, a])
-    points = deque([a, b, c])
-    points = deque([a, b, c, d])
-    points = deque([d,c,b,a])
-#gi    points = deque([a, b, c, d, e])
-#    points = deque([a,b,c,d,e,f])
+    """
+    Martinique
+    """
+    start_point = LatLon(14.810500300074992, -61.1768933155967)
+    a = LatLon(14.803299290149893, -61.178222440791735)
+    b= LatLon(14.801850020555767, -61.17780919765657)
+    c= LatLon(14.801301645750753, -61.176334486860505)
+    d= LatLon(14.803784989143798, -61.17344988772093)
+    e= LatLon(14.804842555809342, -61.17457617783481)
+    f= LatLon(14.805179409280854, -61.176974608580075)
 
-    points.rotate(1)
+#    points = deque([f, e, d, c, b, a])
+#    points = deque([a, b, c])
+#    points = deque([a, b, c, d])
+#    points = deque([d,c,b,a])
+#    points = deque([a, b, c, d, e])
+    points = deque([a,b,c,d,e,f])
 
-    emprise_laterale = 25
-    emprise_longitudinale = 10
+    points.rotate(-1)
 
+    emprise_laterale = 40
+    emprise_longitudinale = 56
+
+
+
+#    emprise_laterale = 40
+#    emprise_longitudinale = 35
     # on fait varier les start_point
     #    for start_point in start_point_list:
 
-    start_point = start_point_list[1]
     # on fait varier le point de départ
 #    for i in range(len(points)):
 
 
     Path_generator_snail = PathPlanning(points=points,  emprise_laterale=emprise_laterale,
-                                  emprise_longitudinale=emprise_longitudinale, start_point=start_point, recouvrement_lat=0.8, recouvrement_lon=0.5)
+                                  emprise_longitudinale=emprise_longitudinale, start_point=start_point, recouvrement_lat=0.8, recouvrement_lon=0.10)
    
-    Path_generator_snail.generate_path("snail")
-    #Path_generator_snail.generate_path("normal")
+#    Path_generator_snail.generate_path("snail")
+    Path_generator_snail.generate_path("espiral")
 
 #    the_map = WaypointMap(start_point)
     the_map_snail = WaypointMap()
@@ -530,7 +660,7 @@ def main(args):
                         fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
     # On ajoute les waypoint qui ont été trouvés a la carte
     for wp in Path_generator_snail.waypoint_list:
-        the_map_snail.add_waypoint(wp, direction=False, footprint=False)
+        the_map_snail.add_waypoint(wp, direction=False, footprint=True)
         
     the_map_snail.add_path_waypoints(Path_generator_snail.waypoint_list)
     # Exportation de la carte
@@ -543,11 +673,11 @@ def main(args):
     wp_list =[]
     for wp in Path_generator_snail.waypoint_list:
         wp_list.append(wp.latlon())
-                #print('({} {})'.format(wp.latitude, wp.longitude))
 
-    from IPython import embed; embed()
+   # from IPython import embed; embed()
 
-    print(wp_list)
+#    print(wp_list)
+
     # on fait tourner le 1er point
     # points.rotate(1)
 if __name__ == '__main__':

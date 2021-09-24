@@ -30,7 +30,8 @@ class WayPoint:
         self.emprise_laterale = emprise_laterale  # en mètres
         self.emprise_longitudinale = emprise_longitudinale  # en mètres
         self.orientation = orientation
-        self.emprise_coordinates()
+        if self.emprise_laterale != 0 and self.emprise_longitudinale != 0 :
+            self.emprise_coordinates()
         
     def __str__(self):
         return ('[{} {}]'.format(self.latitude, self.longitude))
@@ -52,6 +53,7 @@ class WayPoint:
         x2,y2 ---------------- x1,y1
 
         """
+        
         self.delta_lat = self.emprise_laterale / 2
         self.delta_long = self.emprise_longitudinale / 2
 

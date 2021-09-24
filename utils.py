@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
+from typing import Deque
 from geopy.distance import geodesic
 from math import degrees, acos, radians
 from geographiclib.geodesic import Geodesic
@@ -7,15 +8,15 @@ from geopy import Point, distance, point
 import geopy
 from math import degrees, sqrt, sin, cos
 import sys
-
+import numpy as np
 from numpy import result_type
 from pygeodesy.sphericalTrigonometry import LatLon as LatLontri
 from pygeodesy.sphericalNvector import LatLon as LatLonsphericalNvector
+from collections import deque
 
 
 debug = False
 debug = True
-
 
 
 def LatLontrigo2nvector(A):
@@ -38,19 +39,14 @@ def getAngle(A, B, C):
 
 def getAnglelatlon(a, b,c):
     "return angle en degrees between Latlon A,B and C in degrees"
-    A=[a.lat,a.lon]
-    B=[b.lat,b.lon]
-    C=[c.lat,c.lon]
     
-    AB = geodesic(A, B).m
-    BC = geodesic(B, C).m
-    CA = geodesic(A, C).m
-
+    AB = a.distanceTo(b)
+    BC = b.distanceTo(c)
+    CA = c.distanceTo(a)
+    
     return degrees(acos((AB*AB+BC*BC-CA*CA)/(2*AB*BC)))
 
 
-def getDistance(A, B):
-    return geodesic(A, B).m
 
 def distance_to_line(A,B,C):
     """ return the distance of A to line BC"""
@@ -239,6 +235,8 @@ def intersect_points_bearings_latlon(A, bearing_A, B, bearing_B):
         c= c.antipode()
     return c
 
+
+
 def main():
     print('test_LatLontrigo2nvector() {}'.format(test_LatLontrigo2nvector()))
 
@@ -272,7 +270,24 @@ def main():
     p2= LatLontri(1, 1)
     q2= LatLontri(10, 10)
     doIntersect(p1,q1,p2,q2)
-    
+
+    p = np.array([0, 0])
+
+    a = np.array([[ 1,  1],
+                [-1,  0],
+                [-1, -1]])
+    b = np.array([[ 2,  2],
+                [ 1,  0],
+                [ 1, -1]])
+
+    p=LatLontri(0,0)
+    point_list=deque([LatLontri(1,1),LatLontri(2,2)])
+
+    print(lineseg_dists(p, point_list))
+
+
+    from IPython import embed; embed()
+
 
 if __name__ == '__main__':
     main()
