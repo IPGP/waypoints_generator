@@ -107,16 +107,16 @@ class WaypointMap:
         # Les markers de l'emprise
         if footprint_markers:
 
-            folium.Marker(location=waypoint.X0, popup='X0', icon=folium.Icon(
+            folium.Marker(location=waypoint.X0, tooltip='X0'+"<br>"+str(waypoint.X0), icon=folium.Icon(
                 color='red', icon='fa-map-pin')).add_to(self.the_map)
 
-            folium.Marker(location=waypoint.X1, popup='X0', icon=folium.Icon(
+            folium.Marker(location=waypoint.X1,  tooltip='X1'+"<br>"+str(waypoint.X1),icon=folium.Icon(
                 color='green', icon='fa-map-pin')).add_to(self.the_map)
 
-            folium.Marker(location=waypoint.X2, popup='X0', icon=folium.Icon(
+            folium.Marker(location=waypoint.X2,tooltip='X2'+"<br>"+str(waypoint.X2), icon=folium.Icon(
                 color='green', icon='fa-map-pin')).add_to(self.the_map)
 
-            folium.Marker(location=waypoint.X3, popup='X0', icon=folium.Icon(
+            folium.Marker(location=waypoint.X3, tooltip='X3'+"<br>"+str(waypoint.X3),icon=folium.Icon(
                 color='red', icon='fa-map-pin')).add_to(self.the_map)
 
     def add_polygon(self, points, color, fill_color, fill_opacity, weight, popup, fill=True):

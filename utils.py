@@ -58,17 +58,6 @@ def distance_to_line(A,B,C):
     return sqrt(BA*BA-BH*BH)
 
 
-def point_distance_bearing_to_new_point_latlon(point, distance, bearing):
-    """return new coordinates of the input point with distance and bearing
-        distance in meters
-    """
-
-    dist = geopy.distance.distance(meters=(distance))
-    tmp = dist.destination(point=Point(point.lat, point.lon), bearing=bearing)
-#
-    # print("angle "+str(angle + self.orientation))
-    return LatLontri(tmp.latitude, tmp.longitude)
-
 
 def iswithinLatLontTri(A, point1, point2):
     """
@@ -128,10 +117,14 @@ def orientation(p, q, r):
 # the line segment 'p1q1' and 'p2q2' intersect.
 # false if Collinear
 def doIntersect(p1,q1,p2,q2):
+    """ Return intersection point of segments [p1 q1] and [p2 q2]
+        if points are coolinear return False
+        Antipode correction if needed
+    """
 
-    if p1.isequalTo(p2,eps=0.01)or p1.isequalTo(q2,eps=0.01) or q1.isequalTo(p2,eps=0.01) or q1.isequalTo(q2,eps=0.01):
-        #print("Same points")
-        return False,False
+    if p1.isequalTo(p2,eps=0.0001)or p1.isequalTo(q2,eps=0.0001) or q1.isequalTo(p2,eps=0.0001) or q1.isequalTo(q2,eps=0.0001):
+        print("Same points")
+        return False
      
     # Find the 4 orientations required for
     # the general and special cases
@@ -155,7 +148,7 @@ def doIntersect(p1,q1,p2,q2):
         #return inter
         if (inter.distanceTo(p1) > 10000)and (inter.distanceTo(q2) > 10000):
             inter= inter.antipode()
-        return inter,(p2,q2)
+        return inter
  
     # Special Cases
     """ 
@@ -188,7 +181,8 @@ def intersect_segments_list(new_vector, segments_list):
     for segment in reversed(segments_list):
         p2=segment[0]
         q2=segment[1]
-        inter,segment = doIntersect(p1,q1,p2,q2)
+        inter = doIntersect(p1,q1,p2,q2)
+        segment = (p2 , q2)
         if inter:
             #print('intersection avec {} {} {} {} et {} {} {} {}'.format(p1.lat,p1.lon,q1.lat,q1.lon,p2.lat,p2.lon,q2.lat,q2.lon))
             return inter,segment

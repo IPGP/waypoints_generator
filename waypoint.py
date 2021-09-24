@@ -6,6 +6,9 @@ from gpxplotter import create_folium_map
 from geopy import Point, distance
 import geopy
 import sys
+from pygeodesy.dms import lonDMS
+
+from pygeodesy.units import Lat
 from utils import *
 from pygeodesy.sphericalTrigonometry import LatLon 
 
@@ -39,7 +42,23 @@ class WayPoint:
     def latlon(self):
         return (self.latitude, self.longitude)
 
- 
+    def footprint_intersection(self,waypoint_2,isclockwise):
+        """
+        Return intersection point of two waypoint footprints
+        left intersection is isclockwise
+        right intersection if is not isclockwise
+        """
+        
+      #  print('WP1 {}  WP2  {}'.format(self.__str__(),waypoint_2.__str__()))
+#        print('WP1 {} {} WP2 {} {}'.format(self.lat,self.lon,waypoint_2.lat,waypoint_2.lon))
+        if isclockwise:
+           # print( ' self.X0 {} self.X1 {} waypoint_2.X0 {} waypoint_2.X1 {}'.format(self.X0,self.X1,waypoint_2.X0,waypoint_2.X1))
+            return doIntersect(self.X0_latlon,self.X1_latlon,waypoint_2.X0_latlon,waypoint_2.X1_latlon)
+        else:
+           # print( ' self.X2 {} self.X3 {} waypoint_2.X2 {} waypoint_2.X3 {}'.format(self.X2,self.X3,waypoint_2.X2,waypoint_2.X3))
+            return doIntersect(self.X2_latlon,self.X3_latlon,waypoint_2.X2_latlon,waypoint_2.X3_latlon)
+        
+
     def emprise_coordinates(self):
         """Détermine les coordonnées de l'emprise au sol à partir du point central, de l'orientation et des emprises
                    5 | 5
@@ -59,17 +78,9 @@ class WayPoint:
 
         angle = degrees(atan(self.delta_lat/self.delta_long))
 
-        #dist = geopy.distance.distance(kilometers=(
-        #    sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long)/1000))
-
-        #tmp = dist.destination(point=Point(
-        #    self.latitude, self.longitude), bearing=angle + self.orientation)
-#
-        #print("angle "+str(angle + self.orientation))
-        #self.X0 = [tmp.latitude, tmp.longitude]
+  
         
-        self.X0_latlon = point_distance_bearing_to_new_point_latlon(point= self.point,
-        distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=angle + self.orientation)
+        self.X0_latlon = self.point.destination(sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),angle + self.orientation)
 
         self.X0 = [self.X0_latlon.lat,self.X0_latlon.lon]
 
@@ -77,16 +88,14 @@ class WayPoint:
         #    self.latitude, self.longitude), bearing=180-angle + self.orientation)
 
         #print("angle "+str(180-angle + self.orientation))
-        self.X1_latlon = point_distance_bearing_to_new_point_latlon(point= self.point,
-        distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=180-angle + self.orientation)
+        self.X1_latlon =  self.point.destination(sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),180-angle + self.orientation)
         self.X1 = [self.X1_latlon.lat,self.X1_latlon.lon]
 
      #   tmp = dist.destination(point=Point(
      #       self.latitude, self.longitude), bearing=180+angle + self.orientation)
         #print("angle "+str(180+angle + self.orientation))
     #    self.X2 = [tmp.latitude, tmp.longitude]
-        self.X2_latlon = point_distance_bearing_to_new_point_latlon(point= self.point,
-        distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=180+angle + self.orientation)
+        self.X2_latlon = self.point.destination( sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),180+angle + self.orientation)
         self.X2 = [self.X2_latlon.lat,self.X2_latlon.lon]
 
   #      tmp = dist.destination(point=Point(
@@ -94,8 +103,7 @@ class WayPoint:
         #print("angle "+str(360-angle + self.orientation))
 #        self.X3 = [tmp.latitude, tmp.longitude]
 
-        self.X3_latlon=point_distance_bearing_to_new_point_latlon(point= self.point,
-        distance= sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),bearing=360-angle + self.orientation)
+        self.X3_latlon=self.point.destination(sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),360-angle + self.orientation)
         self.X3 = [self.X3_latlon.lat,self.X3_latlon.lon]
 
 def main(args):
@@ -104,10 +112,7 @@ def main(args):
     lon = 2.3562098704389163
 
     IPGP = WayPoint(LatLon(lat, lon),90)
-    print(IPGP.X0)
-    print(IPGP.X1)
-    print(IPGP.X2)
-    print(IPGP.X3)
+    print('X0 {} X1 {} X2 {} X3 {}'.format(IPGP.X0,IPGP.X1,IPGP.X2,IPGP.X3))
 
 
 if __name__ == '__main__':
