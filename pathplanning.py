@@ -6,10 +6,11 @@ from IPython.terminal.embed import InteractiveShellEmbed
 import geopy
 import copy
 from geopy.units import meters
-from numpy import angle
+from numpy import Inf, angle
 from pygeodesy.units import Lat
 from pygeodesy.sphericalTrigonometry import LatLon
-from pygeodesy.sphericalNvector import LatLon as LatLonsphericalNvector
+from pygeodesy.sphericalNvector import LatLon as LatLonS
+from pygeodesy.sphericalNvector import intersection
 from geopy.distance import geodesic
 from geopy import Point, distance
 from pygeodesy.points import *
@@ -30,23 +31,29 @@ from copy import copy
 
 
 debug = False
-debug = True
+#debug = True
 
 
 class PathPlanning:
     "PathPlanning class"
 
-    def __init__(self, points,  emprise_laterale, emprise_longitudinale, recouvrement_lat=0., recouvrement_lon=0., orientation=None, start_point=None):
+    def __init__(self, points,  bearing = 0, emprise_laterale=0, emprise_longitudinale=0, percent_recouvrement_lat=0., percent_recouvrement_lon=0., orientation=None, start_point=None):
         """Pathplanning generates waypoints """
 
-#        if not isconvex(points):
-#            print("points must form a convex shape")
-#            sys.exit(-1)
+        # a voir comment adapter normal_plus dans le cas concav avec 4 points par 
+        if not isconvex(points):
+            print("points must form a convex shape")
+            sys.exit(-1)
 
         self.points = points
+        self.centroid =centroidOf(self.points,LatLon=LatLon)
+
         self.nb_points = len(self.points)
-        if debug: print('Les points de ce pathplanning sont {}'.format(self.points))
+        self.bearing=bearing
+#        if debug: print('Les points de ce pathplanning sont {}'.format(self.points))
         self.waypoint_list = []
+        self.extra_point = []
+        
         self.distances = []
         self.bearings = []
         if isclockwise(points):
@@ -60,57 +67,34 @@ class PathPlanning:
         self.start_point = start_point
         self.emprise_laterale = emprise_laterale  # en mètres
         self.emprise_longitudinale = emprise_longitudinale  # en mètres
-        self.recouvrement_lat = recouvrement_lat  # pourcentage
-        self.recouvrement_lon = recouvrement_lon  # pourcentage
-        self.increment_lon = self.emprise_longitudinale*(1-recouvrement_lon)
-        self.increment_lat = self.emprise_laterale*(1-recouvrement_lat)
+        self.recouvrement_lat = percent_recouvrement_lat  # pourcentage
+        self.recouvrement_lon = percent_recouvrement_lon  # pourcentage
+        self.increment_lon = self.emprise_longitudinale*(1-percent_recouvrement_lon)
+        self.increment_lat = self.emprise_laterale*(1-percent_recouvrement_lat)
         #print('recouvrement_lat {} self.emprise_laterale {} self.increment_lat {}'.format(recouvrement_lat,self.emprise_laterale,self.increment_lat))
         self.compute_distances_and_bearings(self.points)
 
-    def old_compute_distances_and_bearings(self,input_points):
-        """ compute distances between all points"""
-        # last point == first point so don't compute
-        points = copy(input_points)
-        points.append(input_points[0])
 
-        for i in range(len(points)-1):
-            if debug: print('point lat {} lon {}'.format(points[i].lat, points[i].lon))
-            self.distances.append(points[i].distanceTo(points[i+1]))
-            self.bearings.append(points[i].compassAngleTo(points[i+1]))
-            if i==0:
-                points[i].angle=getAnglelatlon(points[i-2],points[i],points[i+1])
-                points[i].l=points[i].distanceTo(points[i+1])
-            else:
-                points[i].angle=getAnglelatlon(points[i-1],points[i],points[i+1])
-                points[i].l=points[i].distanceTo(points[i+1])
-
-        if debug:
-            print('bearings {}'.format(self.bearings))
-        if debug:
-            print('distances {}'.format(self.distances))
-
-        sys.exit()
  
 
     def compute_distances_and_bearings(self,input_points):
         """ compute distances between all points"""
         i=0
-        point_cycle = cycle(self.points)
+        point_cycle = cycle(input_points)
         next_point = next(point_cycle)
-        preceding_point=self.points[-1]
-        while i<self.nb_points:
+        preceding_point=input_points[-1]
+        while i<len(input_points):
             this_point, next_point = next_point, next(point_cycle)
-            if debug: print('point lat {} lon {}'.format(this_point.lat, this_point.lon))
-            self.distances.append(this_point.distanceTo(next_point))
-            self.bearings.append(this_point.compassAngleTo(next_point))
+            #print(this_point)
+            #if debug: print('point lat {} lon {}'.format(this_point.lat, this_point.lon))
+            #self.distances.append(this_point.distanceTo(next_point))
+            #self.bearings.append(this_point.compassAngleTo(next_point))
             this_point.angle=getAnglelatlon(preceding_point,this_point,next_point)
             this_point.bearing=this_point.compassAngleTo(next_point)
             this_point.l=this_point.distanceTo(next_point)
             preceding_point = this_point
             i +=1
-        if debug: print('bearings {}'.format(self.bearings))
-        if debug: print('distances {}'.format(self.distances))
-
+        
 
 
     def generate_path(self, style):
@@ -122,8 +106,111 @@ class PathPlanning:
             self.generate_path_normal()
         elif style == "espiral":
             self.generate_path_espiral()
+        elif style == "normal_plus":
+            self.generate_path_normal_plus()
             
 
+    def generate_path_normal_plus(self):
+        # find the closest and the raest summit  to the start point
+        min_dist=Inf
+        max_dist = 0
+        self.closest_summit = None
+        self.farest_summit = None
+        
+        for point in self.points :
+            tmp_distance = self.start_point.distanceTo(point)
+            if tmp_distance > max_dist:
+                max_dist=tmp_distance
+                self.farest_summit = point
+            if tmp_distance < min_dist:
+                min_dist=tmp_distance
+                self.closest_summit = point
+        
+        self.closest_summit.text='closest summit'
+        self.farest_summit.text = 'farest summit'
+        self.extra_point.append(self.closest_summit)
+        self.extra_point.append(self.farest_summit)
+
+        # Find the best starting point for self.bearing
+        # => if we start W to E, we need to find the Western summit 
+
+        ref_point = self.farest_summit
+        distance_max_to_centroid = 0
+
+        for point in self.points:
+            intersection_point = intersection(LatLonS(point.lat,point.lon),self.bearing,LatLonS(self.centroid.lat,self.centroid.lon),self.bearing+90)
+            distance_to_centroid = intersection_point.distanceTo(LatLonS(self.centroid.lat,self.centroid.lon))
+            if (distance_to_centroid > 10000):
+                intersection_point= intersection_point.antipode()
+                distance_to_centroid = intersection_point.distanceTo(LatLonS(self.centroid.lat,self.centroid.lon))
+            if distance_to_centroid > distance_max_to_centroid:
+                distance_max_to_centroid = distance_to_centroid
+                ref_point = point
+
+        ref_point.text='ref point'
+        self.extra_point.append(ref_point)
+
+
+
+        
+        # Create all the segments of the area
+        self.area_segments =[]
+        i=0
+        point_cycle = cycle(self.points)
+        next_point = next(point_cycle)
+        while i<self.nb_points:
+            this_point, next_point = next_point, next(point_cycle)
+            self.area_segments.append([this_point, next_point])
+            i+=1
+        
+
+        # If we start from self.farest_summit
+        intersection_list = []
+        intersection_exist = True
+        i=1
+
+        # We search until we do not have intersections points
+        while intersection_exist == True :
+            new_point = ref_point.destination(i*self.increment_lat,self.bearing+self.othogonal_increment)
+           # new_point.text='new point'
+            #self.extra_point.append(new_point)
+
+            intersection_exist = False
+
+            # find intersections points
+            for segment in self.area_segments:
+
+                # calcul avec les LatLonS de pygeodesy.sphericalNvector
+                intersection_point_A = intersection(LatLonS(new_point.lat,new_point.lon),self.bearing,LatLonS(segment[0].lat,segment[0].lon),LatLonS(segment[1].lat,segment[1].lon))
+                intersection_point_B = intersection(LatLonS(new_point.lat,new_point.lon),self.bearing+180,LatLonS(segment[0].lat,segment[0].lon),LatLonS(segment[1].lat,segment[1].lon))
+                
+                # the intersection point shoumd be in the segment
+                if intersection_point_A  and  intersection_point_A.iswithin(LatLonS(segment[0].lat,segment[0].lon),LatLonS(segment[1].lat,segment[1].lon)) :
+                    intersection_list.append(intersection_point_A)
+                    intersection_exist = True
+                elif intersection_point_B  and  intersection_point_B.iswithin(LatLonS(segment[0].lat,segment[0].lon),LatLonS(segment[1].lat,segment[1].lon)) :
+                    intersection_list.append(intersection_point_B)
+                    intersection_exist = True
+            
+            i+=1
+            
+        # we need to reorder the pairs of point
+        flip_left_right = True
+
+        # the summit will be the first WP
+        self.waypoint_list.append(WayPoint(ref_point,self.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+   
+        
+        for i in range(0,len(intersection_list)-1,2):
+            if flip_left_right :
+                self.waypoint_list.append(WayPoint(intersection_list[i],self.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                self.waypoint_list.append(WayPoint(intersection_list[i+1],self.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+
+            else :
+                self.waypoint_list.append(WayPoint(intersection_list[i+1],self.bearing+180, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                self.waypoint_list.append(WayPoint(intersection_list[i],self.bearing+180, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+            i=i+ 1
+            flip_left_right = not flip_left_right
 
 
     def generate_path_espiral(self):
@@ -132,9 +219,7 @@ class PathPlanning:
         #   for point in self.points:
         #    print('Point {} {} Angle {} Distance au suivant {}'.format(point.lat ,point.lon,point.angle,point.l))
         
-        self.centroid =centroidOf(self.points,LatLon=LatLon)
  
-        #print('Centroid {} {} '.format(self.centroid.lat ,self.centroid.lon))
         #self.waypoint_list.append(WayPoint(self.centroid,0, emprise_laterale=0, emprise_longitudinale=0, wp_text="Centroid"))
                             
         # Find shortest distance between self.centroid and each segments
@@ -154,8 +239,15 @@ class PathPlanning:
 
         ovx=self.emprise_laterale*self.recouvrement_lat
         #### NB of Rings
-        dr = self.emprise_laterale-ovx
-        nb_of_rings = ceil((distance_cp_min - ovx)/(dr))
+        distance_between_rings = self.emprise_laterale*(1-self.recouvrement_lat)
+        print('distance_cp_min {} distance_between_rings/2 {} ovx {} self.emprise_laterale {}'.format(distance_cp_min,distance_between_rings/2,ovx,self.emprise_laterale))
+        if distance_cp_min < distance_between_rings/2 :
+            nb_of_rings =0
+            print("0 ring ! => exit")
+            sys.exit()
+
+        else:
+            nb_of_rings = ceil((distance_cp_min - self.recouvrement_lat*self.emprise_laterale)/(distance_between_rings))
 
         if nb_of_rings == 1:
             print("un seul ring ! => exit")
@@ -163,81 +255,117 @@ class PathPlanning:
 
         print('nb_of_rings is {}'.format(nb_of_rings))
 
-        #print('old ovx {} old dr {}'.format(self.increment_lat,dr))
-        new_ovx = (nb_of_rings*self.emprise_laterale-distance_cp_min)/(nb_of_rings-1)
-        new_dr = (distance_cp_min-self.emprise_laterale)/(nb_of_rings-1)
+        distance_between_rings = (distance_cp_min -self.emprise_laterale)/(nb_of_rings -1)
+
+        #print('old ovx {} old dr {}'.format(self.increment_lat,distance_between_rings))
+        #self.new_ovx = (nb_of_rings*self.emprise_laterale-distance_cp_min)/(nb_of_rings-1)
+        self.new_ovx = self.emprise_laterale-distance_between_rings
+        
+        #new_dr = (distance_cp_min-self.emprise_laterale)/(nb_of_rings-1)
         
         #print('new ovx {} new dr {}'.format(ovx,dr))
 
-        j = 0
-        first_point = True
+        self.first_point = True
         new_point = None
+        vertices = self.points
 
-        for ring in range(nb_of_rings):
-            last_waypoints=[]
-            first_waypoints=[]
+        for ring_nb in range(nb_of_rings):
+            print('Ring nb {} nb of vertices {}'.format(ring_nb,len(vertices)))
+            vertices = self.compute_ring_waypoints(vertices,ring_nb)
+            self.compute_distances_and_bearings(vertices)
+            if ring_nb == 0:
+                break
 
-            for point in self.points:
                 
-                if first_point :
-                   # print('max is {}'.format(max([0,-self.emprise_laterale/tan(radians(point.angle))])))
-                    d=point.l+max([0,-self.emprise_laterale/tan(radians(point.angle))])
+    def compute_ring_waypoints(self,vertices,ring_nb):
+        last_waypoints=[]
+        first_waypoints=[]
+        new_points=[]
 
+        for point in vertices:
+            if self.first_point :
+            #if first_point :
+                # print('max is {}'.format(max([0,-self.emprise_laterale/tan(radians(point.angle))])))
+                d=point.l+max([0,-self.emprise_laterale/tan(radians(point.angle))])
+                print('premier point avec d={} sinon d aurait été d={}'.format(d,point.l))
+            else:
+                d=point.l
+
+            
+            nb_waypoints_per_segment=ceil((d-self.recouvrement_lon)/(self.emprise_longitudinale-self.recouvrement_lon))
+            #print('Nb de waypoints {} d {} ovy {}'.format(nb_waypoints_per_segment,d,ovy))
+
+            new_ovy = (nb_waypoints_per_segment*self.emprise_longitudinale-point.l)/(nb_waypoints_per_segment-1)
+            new_dw = ((d - self.emprise_longitudinale)/(nb_waypoints_per_segment-1))
+
+            #print('Nb de waypoints {} new_dw is {}'.format(nb_waypoints_per_segment,new_dw))
+
+            #print('Ly {} new_ovy{}'.format(self.emprise_longitudinale,new_ovy))
+
+            for i in range(nb_waypoints_per_segment):
+                
+                if i == 0 :
+                    if self.first_point:
+                        self.first_point = False
+                        new_point= point.destination((self.emprise_laterale/2), point.bearing+self.othogonal_increment)
+                        # on rajoute le 1er nouveau point, intersection de l'emprise de new_point avec le segment vertices[-1] et point
+                        waypoint_tmp = WayPoint(new_point,point.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale)
+ 
+                        if self.isclockwise:
+                        # print( ' self.X0 {} self.X1 {} waypoint_2.X0 {} waypoint_2.X1 {}'.format(self.X0,self.X1,waypoint_2.X0,waypoint_2.X1))
+                            new_first_point= doIntersect(waypoint_tmp.X2_latlon,waypoint_tmp.X1_latlon,vertices[-1],point)
+                        else:
+                        # print( ' self.X2 {} self.X3 {} waypoint_2.X2 {} waypoint_2.X3 {}'.format(self.X2,self.X3,waypoint_2.X2,waypoint_2.X3))
+                            new_first_point=  doIntersect(waypoint_tmp.X2_latlon,waypoint_tmp.X1_latlon,vertices[-1],point)
+                        new_points.append(new_first_point)
+                        new_first_point.text='First New point'
+                        self.extra_point.append(new_first_point)
+
+                    else:    
+                        new_point_tmp= point.destination((self.emprise_laterale/2), point.bearing+self.othogonal_increment)
+                        new_point= new_point_tmp.destination((self.emprise_longitudinale/2), point.bearing)
+                    first_waypoints.append(WayPoint(new_point,point.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
                 else:
-                    d=point.l
-   
-                ovy=self.emprise_longitudinale*self.recouvrement_lon
-                nb_waypoints_per_segment=ceil((d-ovy)/(self.emprise_longitudinale-ovy))
-                new_ovy = (nb_waypoints_per_segment*self.emprise_longitudinale-point.l)/(nb_waypoints_per_segment-1)
-                new_dw = ((d - self.emprise_longitudinale)/(nb_waypoints_per_segment-1))
-                
-                #print('Nb de waypoints {} new_dw is {}'.format(nb_waypoints_per_segment,new_dw))
-                #print('Ly {} new_ovy{}'.format(self.emprise_longitudinale,new_ovy))
+                    new_point= last_point.destination(new_dw, point.bearing)
 
-                # pourquoi rajouter +1 ? Sinon ca ne marche pas...
-                for i in range(nb_waypoints_per_segment):
-                    
-                    if i == 0 :
-                        if first_point:
-                            first_point = False
-                            new_point= point.destination((self.emprise_laterale/2), point.bearing+self.othogonal_increment)
-                        else:    
-                            new_point_tmp= point.destination((self.emprise_laterale/2), point.bearing+self.othogonal_increment)
-                            new_point= new_point_tmp.destination((self.emprise_longitudinale/2), point.bearing)
-                        first_waypoints.append(WayPoint(new_point,point.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-                    else:
-                        new_point= last_point.destination(new_dw, point.bearing)
+                if i == nb_waypoints_per_segment-1 :
+                    last_waypoints.append(WayPoint(new_point,point.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
 
-                    if i == nb_waypoints_per_segment-1 :
-                        last_waypoints.append(WayPoint(new_point,point.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                self.waypoint_list.append(WayPoint(new_point,point.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,wp_text='Ring nb='+str(ring_nb)))
+                last_point=new_point
+        
+        # On retire le dernier point ? 
+        #self.waypoint_list.pop()
 
-                    self.waypoint_list.append(WayPoint(new_point,point.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-                    last_point=new_point
-                    j+=1
+        ### Calcul des nouveaux vertices :
+        i=0
+        last_cycle = cycle(last_waypoints)
+        first_cycle = cycle(first_waypoints)
+        first= next(first_cycle)
 
-            ### Calcul des nouveaux vertices :
-            new_points=[]
-            i=0
-            last_cycle = cycle(last_waypoints)
-            first_cycle = cycle(first_waypoints)
+        #print('len(last_waypoints)) {}'.format(len(last_waypoints)))
+        while i<len(last_waypoints):
+            last= next(last_cycle)
             first= next(first_cycle)
-
-            while i<len(last_waypoints):
-                last= next(last_cycle)
-                first= next(first_cycle)
-
-                inter = last.footprint_intersection(first,self.isclockwise)
-                if inter:
-                    new_points.append((inter))
-                    #self.waypoint_list.append(WayPoint(inter,point.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,wp_text='inter'))
-                else:
-                    print('probleme pas d intersection')
-                i +=1
-            if ring == 0 :
-
-                return
+            
+            inter = last.footprint_intersection(first,self.isclockwise)
+            print(inter)
+            if inter:
+                # self.new_ovx shift
+                #print('angle {}'.format(vertices[i].angle))
+                new_vertice = inter.destination(self.new_ovx,vertices[i].bearing+self.othogonal_increment+180)
+                inter.text='intersection'
+                new_vertice.text='intersecti_D'
+                new_points.append(new_vertice)
+                #print('New inter is {} {}'.format(inter.lat,inter.lon))
+                #print('New vertice is {} {}'.format(new_vertice.lat,new_vertice.lon))
+                self.extra_point.append(inter)
+                self.extra_point.append(new_vertice)
                 
-
+            else:
+                print('probleme pas d intersection')
+            i +=1
+        return new_points
 
 
     def generate_path_snail(self):
@@ -298,7 +426,7 @@ class PathPlanning:
                 # After first rounf of all points
                 else:
                     # middle_of_base_segment is on the middle of [point next_point] segment
-                    middle_of_base_segment = point.destination( self.distances[i]/2, self.bearings[i])
+                    middle_of_base_segment = point.destination( point.l/2, self.bearings[i])
 
                     # C is on the parrall line to [point next_point] shifted of self.increment_lat*round_nb
                     C = middle_of_base_segment.destination( self.increment_lat*round_nb, self.bearings[i]+self.othogonal_increment)
@@ -442,7 +570,6 @@ class PathPlanning:
             round_nb += 1
             finish_condition=all(lock_points)
 
-#
 
     def generate_path_normal(self):
         """ path type allez-retour
@@ -450,7 +577,7 @@ class PathPlanning:
         # point de départ
         indice_gauche = self.nb_points
         indice_droit = 1
-        right = True
+        flip_left_right = True
         limite_AB = .5
         finish = False
         not_in_right = False
@@ -476,30 +603,25 @@ class PathPlanning:
             #print('i {}'.format(i))
             # if i == 15:
             #    break
-            direction_ext_right = tmp_B.compassAngleTo(
-                self.points[indice_droit+1])
-            direction_ext_left = tmp_A.compassAngleTo(
-                self.points[indice_gauche-1])
+            direction_ext_right = tmp_B.compassAngleTo(self.points[indice_droit+1])
+            direction_ext_left = tmp_A.compassAngleTo(self.points[indice_gauche-1])
+            #print('direction_ext_right {} direction_ext_left {}'.format(direction_ext_right,direction_ext_left))
+
 
             # Le point C est  sur la parralle à [tmp_A tmp_B]
             C = tmp_A.destination(self.increment_lat, direction_right+self.othogonal_increment)
             # le point D est sur la ligne C avec son bearing et à distance d=10m sans importance
-            D = C.destination(10, direction_left)
-
+            D = C.destination(100, direction_left)
+ 
             # on trouve les points d'intersection de C avec son bearing et les segments latéraux
-            # self.waypoint_list.append(WayPoint(
-            #        C, direction_ext_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,text="C"))
 
 
-
-            intersect_right = intersect_four_points_latlon(
-                C, D, tmp_B, self.points[indice_droit+1])
+            intersect_right = intersect_four_points_latlon(C, D, tmp_B, self.points[indice_droit+1])
 
             # verification que les points son bien sur les segments
             if not iswithinLatLontTri(intersect_right, tmp_B, self.points[indice_droit+1]):
                 #not_in_right = True
-                if debug:
-                    print('not in segment right')
+                if debug: print('not in segment right')
                 indice_droit += 1
                 # Arret si le nouveau sommet est celui du coté opposé
                 if (indice_droit == indice_gauche) or (indice_droit > self.nb_points - 2):
@@ -507,19 +629,17 @@ class PathPlanning:
                         print('finish')
                     finish = True
                     break
-                direction_ext_right = self.points[indice_droit].compassAngleTo(
-                    self.points[indice_droit+1])
+                direction_ext_right = self.points[indice_droit].compassAngleTo(self.points[indice_droit+1])
 
-                intersect_right = intersect_four_points_latlon(
-                    C, D, self.points[indice_droit], self.points[indice_droit+1])
+                intersect_right = intersect_four_points_latlon(C, D, self.points[indice_droit], self.points[indice_droit+1])
 
                 if not iswithinLatLontTri(intersect_right, self.points[indice_droit], self.points[indice_droit+1]):
                     if debug:
                         print('Really not in segment right !')
                     not_in_right = True
 
-            intersect_left = intersect_four_points_latlon(
-                C, D, tmp_A, self.points[indice_gauche-1])
+            intersect_left = intersect_four_points_latlon(C, D, tmp_A, self.points[indice_gauche-1])
+
             # si il n'y a pas d'intersection dans ce segment, on prend le suivant
             if not iswithinLatLontTri(intersect_left, tmp_A, self.points[indice_gauche-1]):
                 if debug:
@@ -531,8 +651,7 @@ class PathPlanning:
                         print('finish')
                     finish = True
                     break
-                direction_ext_left = self.points[indice_gauche].compassAngleT(
-                    self.points[indice_gauche-1])
+                direction_ext_left = self.points[indice_gauche].compassAngleTo(self.points[indice_gauche-1])
 
                 intersect_left = intersect_four_points_latlon(
                     C, D, self.points[indice_gauche], self.points[indice_gauche-1])
@@ -546,33 +665,11 @@ class PathPlanning:
                 if debug:
                     print('Finish !!!! ')
                 finish = True
-                # self.waypoint_list.append(WayPoint(
-                #    C, direction_ext_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,text="C"))
-                #self.waypoint_list.append(WayPoint(D                    , direction_ext_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,text="D"))
 
                 break
-            # arret en cas de pb
-#            if(intersect_right[0] < 0) or intersect_left[0] < 0:
-            if(intersect_right.lat < 0) or intersect_left.lon < 0:
-                print('oups ! ')
-                if right:
-                    print('to_right')
-                else:
-                    print('to_left')
-                self.waypoint_list.append(WayPoint(
-                    C, direction_ext_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
 
-                print('C {}'.format(C))
-                print('direction_right {}'.format(direction_right))
-                print('indice_droit {} indice_gauche {}'.format(
-                    indice_droit, indice_gauche))
-                print('intersect_right {} intersect_left {}'.format(
-                    intersect_right, intersect_left))
-                print('tmp_A {} tmp_B {}'.format(tmp_A, tmp_B))
-
-                break
             # on ajoute les points dans le bon ordre
-            if right:
+            if flip_left_right:
                 self.waypoint_list.append(WayPoint(
                     intersect_right, direction_ext_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
                 self.waypoint_list.append(WayPoint(
@@ -586,7 +683,7 @@ class PathPlanning:
 #            print('intersect_right {} intersect_left {}'.format(                intersect_right, intersect_left))
             tmp_A = intersect_left
             tmp_B = intersect_right
-            right = not right
+            flip_left_right = not flip_left_right
             i += 1
             not_in_left = False
             not_in_right = False
@@ -606,9 +703,11 @@ class PathPlanning:
             nb_turns +=1
 
 
-        print('############################################################')
-        print('{} Total distance is {}m with {} turns'.format(self.style, total_distance, nb_turns))
-        print('############################################################')
+      #  print('############################################################')
+     #   print('{} Total distance is {}m with {} turns'.format(self.style, total_distance, nb_turns))
+      #  print('############################################################')
+
+        return total_distance, nb_turns
 
     def export_to_kml(self):
         """ Export waypoints to kml for DJI UAV"""
@@ -636,69 +735,83 @@ def main(args):
     """
     Martinique
     """
-    start_point = LatLon(14.810500300074992, -61.1768933155967)
-    a = LatLon(14.803299290149893, -61.178222440791735)
-    b= LatLon(14.801850020555767, -61.17780919765657)
-    c= LatLon(14.801301645750753, -61.176334486860505)
-    d= LatLon(14.803784989143798, -61.17344988772093)
-    e= LatLon(14.804842555809342, -61.17457617783481)
-    f= LatLon(14.805179409280854, -61.176974608580075)
+    start_point = LatLon(14.810431373395028, -61.176753253004485)
+    start_point.text = 'Start'
+    a = LatLon(14.801717517497558, -61.17830598375636)
+    b= LatLon(14.803184637915658, -61.177470922032136)
+    c= LatLon(14.804110982101069, -61.176259107347896)
+    d= LatLon(14.80476281073443, -61.175343978459765)
+    e= LatLon(14.804147551878703, -61.17414211429372)
+    f= LatLon(14.802389075700889, -61.175630772903205)
+    g= LatLon(14.801758424759862, -61.176496729696545)
 
 #    points = deque([f, e, d, c, b, a])
+#    points = deque([a,f, e, d, c, b ])
 #    points = deque([a, b, c])
 #    points = deque([a, b, c, d])
-#    points = deque([d,c,b,a])
-#    points = deque([a, b, c, d, e])
-    points = deque([a,b,c,d,e,f])
+    points = deque([a, b, c, d, e,f,g])
 
-    points.rotate(-1)
 
     emprise_laterale = 80
-    emprise_longitudinale = 56
+    emprise_longitudinale = 50
 
 
 
-#    emprise_laterale = 40
-#    emprise_longitudinale = 35
-    # on fait varier les start_point
-    #    for start_point in start_point_list:
+    Path_generator= PathPlanning(points=points,  bearing = 45,emprise_laterale=emprise_laterale,
+                                    emprise_longitudinale=emprise_longitudinale, start_point=start_point, percent_recouvrement_lat=0.6, percent_recouvrement_lon=0.80)
+    
+    Path_generator.extra_point.append(start_point)
+    Path_generator.generate_path("normal_plus")
+#    Path_generator.generate_path("normal")
 
-    # on fait varier le point de départ
-#    for i in range(len(points)):
 
 
-    Path_generator_snail = PathPlanning(points=points,  emprise_laterale=emprise_laterale,
-                                  emprise_longitudinale=emprise_longitudinale, start_point=start_point, recouvrement_lat=0.1, recouvrement_lon=0.10)
-   
-#    Path_generator_snail.generate_path("snail")
-    Path_generator_snail.generate_path("espiral")
+    # # on fait varier le sommet de de départ
+    # for i in range(len(points)):
 
-#    the_map = WaypointMap(start_point)
-    the_map_snail = WaypointMap()
+
+    #     Path_generator= PathPlanning(points=points,  emprise_laterale=emprise_laterale,
+    #                                 emprise_longitudinale=emprise_longitudinale, start_point=start_point, recouvrement_lat=0.6, recouvrement_lon=0.80)
+    
+    #     Path_generator.generate_path("normal")
+    #     total_distance, nb_turns = Path_generator.compute_length_and_turns()
+
+    #     print('Start point is {} {} distance {} nb_turns {}'.format(points[0].lat,points[0].lon,total_distance,nb_turns))
+    #     # on change le sommet
+    #     points.rotate(1)
+
+
+    ## export map
+    the_map = WaypointMap(start_point)
     # on place les limites de la zone
-    the_map_snail.add_polygon(points=points, color='#ff7800', fill=True,
+    the_map.add_polygon(points=points, color='#ff7800', fill=True,
                         fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
+    
+    
     # On ajoute les waypoint qui ont été trouvés a la carte
-    for wp in Path_generator_snail.waypoint_list:
-        the_map_snail.add_waypoint(wp, direction=False, footprint=True,footprint_markers=False)
-        
-    the_map_snail.add_path_waypoints(Path_generator_snail.waypoint_list)
-    # Exportation de la carte
-    the_map_snail.export_to_file('snail')
+    for wp in Path_generator.waypoint_list:
+        the_map.add_waypoint(wp, direction=False, footprint=False,footprint_markers=False)
+    
 
-    #print('Start point is {}'.format(points[0]))
+    the_map.add_colored_waypoint_path(Path_generator.waypoint_list)
+
+    # Add extra points (for debug)
+    for extra in Path_generator.extra_point:
+        the_map.add_extra(extra, text=extra.text)
+        print('extra text '+extra.text + '\t\tExtra point\t' + str(extra.lat)+ '\t'+str(extra.lon))
+
+    # Exportation de la carte
+    the_map.export_to_file('normal_plus')
     # Path_generator.export_to_kml()
-    Path_generator_snail.compute_length_and_turns()
+
+
+
 
     wp_list =[]
-    for wp in Path_generator_snail.waypoint_list:
+    for wp in Path_generator.waypoint_list:
         wp_list.append(wp.latlon())
 
    # from IPython import embed; embed()
 
-#    print(wp_list)
-
-    # on fait tourner le 1er point
-    # points.rotate(1)
 if __name__ == '__main__':
     main(sys.argv)

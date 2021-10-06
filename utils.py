@@ -122,7 +122,7 @@ def doIntersect(p1,q1,p2,q2):
         Antipode correction if needed
     """
 
-    if p1.isequalTo(p2,eps=0.0001)or p1.isequalTo(q2,eps=0.0001) or q1.isequalTo(p2,eps=0.0001) or q1.isequalTo(q2,eps=0.0001):
+    if p1.isequalTo(p2,eps=0.000001)or p1.isequalTo(q2,eps=0.000001) or q1.isequalTo(p2,eps=0.000001) or q1.isequalTo(q2,eps=0.000001):
         print("Same points")
         return False
      

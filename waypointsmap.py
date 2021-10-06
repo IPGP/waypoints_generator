@@ -18,7 +18,8 @@ class WaypointMap:
 
     def __init__(self,startpoint=None):
         self.start_icon_path =r"icons/star_yellow.png"
-        self.WP_icon_path_black_path=r"icons/circle_black.png"       
+        self.WP_icon_path_black_path=r"icons/circle_black.png"
+        self.WP_icon_path_red_path=r"icons/circle_red.png"
         self.startpoint=startpoint
         self.waypoint_nb = 0
         self.the_map = create_folium_map(
@@ -65,9 +66,9 @@ class WaypointMap:
 
         # Add custom basemaps
         basemaps['Google Maps'].add_to(self.the_map)
-       # basemaps['Google Satellite'].add_to(self.the_map)
-        basemaps['Google Terrain'].add_to(self.the_map)
-      #  basemaps['Google Satellite Hybrid'].add_to(self.the_map)
+        basemaps['Google Satellite'].add_to(self.the_map)
+       # basemaps['Google Terrain'].add_to(self.the_map)
+        basemaps['Google Satellite Hybrid'].add_to(self.the_map)
        # basemaps['Esri Satellite'].add_to(self.the_map)
 
         tiles_maps = ['openstreetmap', 'Stamen Terrain']
@@ -119,6 +120,15 @@ class WaypointMap:
             folium.Marker(location=waypoint.X3, tooltip='X3'+"<br>"+str(waypoint.X3),icon=folium.Icon(
                 color='red', icon='fa-map-pin')).add_to(self.the_map)
 
+    def add_extra(self, waypoint, text=None):
+        """ add extra points to the map. for debug purpose"""
+        
+        icon_red = folium.features.CustomIcon(icon_image=self.WP_icon_path_red_path, icon_size=(15, 15))
+
+        folium.Marker(location=[waypoint.lat,waypoint.lon], popup='Extra '+waypoint.text,
+        tooltip=text+"<br>"+str(waypoint.lat)+"<br>"+str(waypoint.lon), icon=icon_red).add_to(self.the_map)
+
+       
     def add_polygon(self, points, color, fill_color, fill_opacity, weight, popup, fill=True):
         """Plot
          Plot shape of the mapping area with markers
@@ -137,10 +147,10 @@ class WaypointMap:
                           icon=folium.Icon(color='blue', icon="circle", prefix='fa')).add_to(self.the_map)
             nb += 1
 
-    def add_path_waypoints(self, waypoints_list):
+    def add_colored_waypoint_path(self, waypoints_list):
         """Draw waypoints path on the map"""
 
-        # If we have only one waypoint exit now
+        # If we have only one waypoint exit 
         if len(waypoints_list) <= 1:
             return
 
@@ -149,28 +159,21 @@ class WaypointMap:
 
         if self.startpoint:
             self.waypoint_nb +=1
-            list_waypoints = [self.startpoint]
-            icon_star = folium.features.CustomIcon(
-            icon_image=self.start_icon_path, icon_size=(40, 40))
-
-            folium.Marker(location=self.startpoint, tooltip='Start'+"<br>"+str(self.startpoint[0])+"<br>"+str(self.startpoint[1]), icon=icon_star).add_to(self.the_map)
+            list_waypoints = [[self.startpoint.lat,self.startpoint.lon]]
+            icon_star = folium.features.CustomIcon(icon_image=self.start_icon_path, icon_size=(40, 40))
+            folium.Marker(location=(self.startpoint.lat,self.startpoint.lon), tooltip='Start'+"<br>"+str(self.startpoint.lat)+"<br>"+str(self.startpoint.lon), icon=icon_star).add_to(self.the_map)
         else:
             list_waypoints = []
-
         for waypoint in waypoints_list:
             list_waypoints.append(waypoint.location)
-            # print(waypoint.location)
-        if self.startpoint:
-            self.waypoint_nb +=1
-            list_waypoints.append(self.startpoint)
- 
+            print(waypoint.location)
+
         color_list = []
         for i in range(self.waypoint_nb):
-            color_list.append(0xFF00+i*(0xFF0000-0xFF00)/(self.waypoint_nb-1))
+            color_list.append(0xFF00+i*(0xFF0000-0xFF00)/(self.waypoint_nb))
 
-
-        line = folium.features.ColorLine(
-            list_waypoints,  colors=color_list, nb_steps=12, weight=10, opacity=1,)
+        
+        line = folium.features.ColorLine(list_waypoints,  colors=color_list, nb_steps=12, weight=10, opacity=1,name='Colored Waypoint Path')
         self.the_map.add_child(line)
 
 
