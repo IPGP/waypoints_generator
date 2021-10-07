@@ -47,6 +47,7 @@ class PathPlanning:
 
         self.points = points
         self.centroid =centroidOf(self.points,LatLon=LatLon)
+        self.centroid.text='Centroid'
 
         self.nb_points = len(self.points)
         self.bearing=bearing
@@ -128,14 +129,15 @@ class PathPlanning:
         
         self.closest_summit.text='closest summit'
         self.farest_summit.text = 'farest summit'
-        self.extra_point.append(self.closest_summit)
-        self.extra_point.append(self.farest_summit)
+        #self.extra_point.append(self.closest_summit)
+        #self.extra_point.append(self.farest_summit)
 
         # Find the best starting point for self.bearing
         # => if we start W to E, we need to find the Western summit 
 
         ref_point = self.farest_summit
         distance_max_to_centroid = 0
+        projection_point = None
 
         for point in self.points:
             intersection_point = intersection(LatLonS(point.lat,point.lon),self.bearing,LatLonS(self.centroid.lat,self.centroid.lon),self.bearing+90)
@@ -143,15 +145,21 @@ class PathPlanning:
             if (distance_to_centroid > 10000):
                 intersection_point= intersection_point.antipode()
                 distance_to_centroid = intersection_point.distanceTo(LatLonS(self.centroid.lat,self.centroid.lon))
+            #intersection_point.text='intersection'
+            #self.extra_point.append(intersection_point)
+
             if distance_to_centroid > distance_max_to_centroid:
                 distance_max_to_centroid = distance_to_centroid
                 ref_point = point
+                projection_point = LatLon(intersection_point.lat,intersection_point.lon)
 
         ref_point.text='ref point'
-        self.extra_point.append(ref_point)
+        #self.extra_point.append(ref_point)
+        #self.extra_point.append(self.centroid)
 
-
-
+        # find direction from ref_point to centroid
+        direction_to_centroid = projection_point.compassAngleTo(self.centroid)
+        #print('direction_to_centroid {} self.angle {}'.format(direction_to_centroid,self.bearing))
         
         # Create all the segments of the area
         self.area_segments =[]
@@ -171,7 +179,10 @@ class PathPlanning:
 
         # We search until we do not have intersections points
         while intersection_exist == True :
-            new_point = ref_point.destination(i*self.increment_lat,self.bearing+self.othogonal_increment)
+            #new_point = ref_point.destination(i*self.increment_lat,self.bearing+self.othogonal_increment)
+            new_point = ref_point.destination(i*self.increment_lat,direction_to_centroid)
+            
+
            # new_point.text='new point'
             #self.extra_point.append(new_point)
 
@@ -195,7 +206,7 @@ class PathPlanning:
             i+=1
             
         # we need to reorder the pairs of point
-        flip_left_right = True
+        flip_left_right = False
 
         # the summit will be the first WP
         self.waypoint_list.append(WayPoint(ref_point,self.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
@@ -757,28 +768,11 @@ def main(args):
 
 
 
-    Path_generator= PathPlanning(points=points,  bearing = 45,emprise_laterale=emprise_laterale,
+    Path_generator= PathPlanning(points=points,  bearing = 140,emprise_laterale=emprise_laterale,
                                     emprise_longitudinale=emprise_longitudinale, start_point=start_point, percent_recouvrement_lat=0.6, percent_recouvrement_lon=0.80)
     
     Path_generator.extra_point.append(start_point)
     Path_generator.generate_path("normal_plus")
-#    Path_generator.generate_path("normal")
-
-
-
-    # # on fait varier le sommet de de départ
-    # for i in range(len(points)):
-
-
-    #     Path_generator= PathPlanning(points=points,  emprise_laterale=emprise_laterale,
-    #                                 emprise_longitudinale=emprise_longitudinale, start_point=start_point, recouvrement_lat=0.6, recouvrement_lon=0.80)
-    
-    #     Path_generator.generate_path("normal")
-    #     total_distance, nb_turns = Path_generator.compute_length_and_turns()
-
-    #     print('Start point is {} {} distance {} nb_turns {}'.format(points[0].lat,points[0].lon,total_distance,nb_turns))
-    #     # on change le sommet
-    #     points.rotate(1)
 
 
     ## export map
@@ -798,7 +792,7 @@ def main(args):
     # Add extra points (for debug)
     for extra in Path_generator.extra_point:
         the_map.add_extra(extra, text=extra.text)
-        print('extra text '+extra.text + '\t\tExtra point\t' + str(extra.lat)+ '\t'+str(extra.lon))
+        #print('extra text '+extra.text + '\t\tExtra point\t' + str(extra.lat)+ '\t'+str(extra.lon))
 
     # Exportation de la carte
     the_map.export_to_file('normal_plus')

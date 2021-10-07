@@ -166,7 +166,7 @@ class WaypointMap:
             list_waypoints = []
         for waypoint in waypoints_list:
             list_waypoints.append(waypoint.location)
-            print(waypoint.location)
+            #print(waypoint.location)
 
         color_list = []
         for i in range(self.waypoint_nb):
@@ -184,7 +184,7 @@ class WaypointMap:
     def export_to_file(self, filename):
         """Export waypoint map to file"""
         if filename:filename+='.html'
-        print('{} waypoint exportés'.format(self.waypoint_nb))
+        #print('{} waypoint exportés'.format(self.waypoint_nb))
 
         self.the_map.fit_bounds(self.the_map.get_bounds(), padding=(5, 5))
         folium.LayerControl(sortLayers=True).add_to(self.the_map)
