@@ -85,7 +85,6 @@ the_map.export_to_file('normal_plus')
 # wp_list is the list of the waypoints
 wp_list =Path_generator.export_to_list()
 print(wp_list)
-print("######################################2
-")
+print("######################################")
 wp_list =Path_generator.export_to_paired_wp()
 print(wp_list)

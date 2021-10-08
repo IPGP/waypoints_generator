@@ -210,9 +210,11 @@ class PathPlanning:
 
         # the summit will be the first WP
         self.waypoint_list.append(WayPoint(ref_point,self.bearing, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
-        
+       
         self.paired_waypoints_list.append([[ref_point.lat, ref_point.lon],[]])
 
+
+   
         
         for i in range(0,len(intersection_list)-1,2):
             if flip_left_right :
@@ -224,7 +226,7 @@ class PathPlanning:
                 self.waypoint_list.append(WayPoint(intersection_list[i],self.bearing+180, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
                 self.paired_waypoints_list.append([[intersection_list[i+1].lat,intersection_list[i+1].lon],[intersection_list[i].lat,intersection_list[i].lon]])
 
-            i=i+ 1
+
             flip_left_right = not flip_left_right
 
 
@@ -730,7 +732,6 @@ class PathPlanning:
         for wp in self.waypoint_list:
             wp_list.append(wp.latlon())
         return wp_list
-
     def export_to_paired_wp(self):
         """ Export waypoints in pairs"""
         return self.paired_waypoints_list
