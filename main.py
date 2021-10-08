@@ -1,7 +1,12 @@
+#!/usr/bin/python
+# -*- coding:utf-8 -*-
 from pygeodesy.sphericalTrigonometry import LatLon
 from pathplanning import PathPlanning
 from waypointsmap import WaypointMap
 from collections import deque
+from math import tan,radians
+from drones import Drones
+import sys
 
 """
 Martinique
@@ -16,18 +21,38 @@ d= LatLon(14.80476281073443, -61.175343978459765)
 e= LatLon(14.804147551878703, -61.17414211429372)
 f= LatLon(14.802389075700889, -61.175630772903205)
 g= LatLon(14.801758424759862, -61.176496729696545)
-
-
 points = deque([a, b, c, d, e,f,g])
 
-
-emprise_laterale = 80
-emprise_longitudinale = 50
+flight_altitude = 20
 
 
 
-Path_generator= PathPlanning(points=points,  bearing = 140,emprise_laterale=emprise_laterale,
-                                emprise_longitudinale=emprise_longitudinale, start_point=start_point, percent_recouvrement_lat=0.6, percent_recouvrement_lon=0.80)
+## Choose sensor from json file
+drones=Drones()
+camera_number = 0
+try:
+    camera_number = int(input('Enter your camera number: '))
+except ValueError:
+    print("Not a number")
+
+camera = drones.get_camera(camera_number)
+
+print('Selected camera is {}'.format(camera))
+
+
+# parameters of the camera
+fieldOfView = camera.camera_fieldofview
+imageResolutionX = camera.camera_resolution_X
+imageResolutionY = camera.camera_resolution_Y
+aspectRatio = imageResolutionX / imageResolutionY;
+
+# width and height of the projected area
+width = 2 * flight_altitude * tan(radians(fieldOfView / 2))
+height = width / aspectRatio
+
+print('Camera ')
+Path_generator= PathPlanning(points=points,  bearing = 140,lateral_footprint=width,
+                                longitudinal_footprint=height, start_point=start_point, percent_recouvrement_lat=0.6, percent_recouvrement_lon=0.80)
 
 Path_generator.extra_point.append(start_point)
 
@@ -59,4 +84,8 @@ the_map.export_to_file('normal_plus')
 
 # wp_list is the list of the waypoints
 wp_list =Path_generator.export_to_list()
+print(wp_list)
+print("######################################2
+")
+wp_list =Path_generator.export_to_paired_wp()
 print(wp_list)

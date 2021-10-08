@@ -3,27 +3,60 @@
     {
       "brand": "DJI",
 	  "name": "Phantom4 RTK",
-      "cameras": [
+      "Cameras": [
         {
-          "camera": "Phantom4 RTK",
-          "resolution_X": 1200,
-          "resolution_Y": 4000
+          "camera": "Phantom4 RTK (3:2)",
+          "resolution_X": 5472,
+          "resolution_Y": 3648,
+          "fieldOfView" : 84,
+          "x_sensor_size" :0,
+          "y_sensor_size" :0
+        },
+        {
+          "camera": "Phantom4 RTK (4:3)",
+          "resolution_X": 4864,
+          "resolution_Y": 3648,
+          "fieldOfView" : 0,
+          "x_sensor_size" :0,
+          "y_sensor_size" :0
         }
       ]
     },
     {
       "brand": "DJI",
       "name": "Matrice 210 RTK V2",
-      "cameras": [
+      "Cameras": [
         {
           "camera": "X7",
-          "resolution_X": 1200,
-          "resolution_Y": 4000
+          "resolution_X": 6016,
+          "resolution_Y": 4008,
+          "fieldOfView" : 61,
+          "x_sensor_size" :23.5,
+          "y_sensor_size" :12.5
         },
         {
           "camera": "Multispectral",
-          "resolution_X": 3000,
-          "resolution_Y": 4000
+          "resolution_X": 0,
+          "resolution_Y": 0,
+          "fieldOfView" : 0,
+          "x_sensor_size" :0,
+          "y_sensor_size" :0
+        },
+        {
+          "camera": "XT2 Thermique",
+          "resolution_X": 0,
+          "resolution_Y": 0,
+          "fieldOfView" : 0,
+          "x_sensor_size" :0,
+          "y_sensor_size" :0
+        },  
+        {
+          "camera": "XT2 Optique",
+          "resolution_X": 0,
+          "resolution_Y": 0,
+          "fieldOfView" : 0,
+          "x_sensor_size" :0,
+          "y_sensor_size" :0
         }
       ]
     }
