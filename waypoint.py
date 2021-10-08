@@ -16,7 +16,7 @@ from pygeodesy.sphericalTrigonometry import LatLon
 class WayPoint:
     "Waypoint class"
 
-    def __init__(self, point, orientation, emprise_laterale=100, emprise_longitudinale=50,wp_text=''):
+    def __init__(self, point, orientation, lateral_footprint=100, longitudinal_footprint=50,wp_text=''):
         
         # point is a latlontri
         self.point = point
@@ -30,10 +30,10 @@ class WayPoint:
         if len(self.text)>0:
             self.text=self.text+' '
         # self.hauteur_sol
-        self.emprise_laterale = emprise_laterale  # en mètres
-        self.emprise_longitudinale = emprise_longitudinale  # en mètres
+        self.lateral_footprint = lateral_footprint  # en mètres
+        self.longitudinal_footprint = longitudinal_footprint  # en mètres
         self.orientation = orientation
-        if self.emprise_laterale != 0 and self.emprise_longitudinale != 0 :
+        if self.lateral_footprint != 0 and self.longitudinal_footprint != 0 :
             self.emprise_coordinates()
         
     def __str__(self):
@@ -73,35 +73,19 @@ class WayPoint:
 
         """
         
-        self.delta_lat = self.emprise_laterale / 2
-        self.delta_long = self.emprise_longitudinale / 2
+        self.delta_lat = self.lateral_footprint / 2
+        self.delta_long = self.longitudinal_footprint / 2
 
         angle = degrees(atan(self.delta_lat/self.delta_long))
-
-  
-        
+    
         self.X0_latlon = self.point.destination(sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),angle + self.orientation)
-
         self.X0 = [self.X0_latlon.lat,self.X0_latlon.lon]
 
-        #tmp = dist.destination(point=Point(
-        #    self.latitude, self.longitude), bearing=180-angle + self.orientation)
-
-        #print("angle "+str(180-angle + self.orientation))
         self.X1_latlon =  self.point.destination(sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),180-angle + self.orientation)
         self.X1 = [self.X1_latlon.lat,self.X1_latlon.lon]
 
-     #   tmp = dist.destination(point=Point(
-     #       self.latitude, self.longitude), bearing=180+angle + self.orientation)
-        #print("angle "+str(180+angle + self.orientation))
-    #    self.X2 = [tmp.latitude, tmp.longitude]
         self.X2_latlon = self.point.destination( sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),180+angle + self.orientation)
         self.X2 = [self.X2_latlon.lat,self.X2_latlon.lon]
-
-  #      tmp = dist.destination(point=Point(
- #           self.latitude, self.longitude), bearing=360-angle + self.orientation)
-        #print("angle "+str(360-angle + self.orientation))
-#        self.X3 = [tmp.latitude, tmp.longitude]
 
         self.X3_latlon=self.point.destination(sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),360-angle + self.orientation)
         self.X3 = [self.X3_latlon.lat,self.X3_latlon.lon]
@@ -117,9 +101,3 @@ def main(args):
 
 if __name__ == '__main__':
     main(sys.argv)
-
-# text = 'text'
-# edges = [upper_left, upper_right, lower_right, lower_left]
-# map_osm = folium.Map(location=[latty, longy], zoom_start=14)
-# map_osm.add_child(folium.vector_layers.Polygon(locations=edges, color=line_color, fill_color=fill_color,
-#                                                weight=weight, popup=(folium.Popup(text))))

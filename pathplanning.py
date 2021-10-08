@@ -37,7 +37,7 @@ debug = False
 class PathPlanning:
     "PathPlanning class"
 
-    def __init__(self, points,  bearing = 0, emprise_laterale=0, emprise_longitudinale=0, percent_recouvrement_lat=0., percent_recouvrement_lon=0., orientation=None, start_point=None):
+    def __init__(self, points,  bearing = 0, lateral_footprint=0, longitudinal_footprint=0, percent_recouvrement_lat=0., percent_recouvrement_lon=0., orientation=None, start_point=None):
         """Pathplanning generates waypoints """
 
         # a voir comment adapter normal_plus dans le cas concav avec 4 points par 
@@ -66,13 +66,12 @@ class PathPlanning:
 
         self.orientation = orientation
         self.start_point = start_point
-        self.emprise_laterale = emprise_laterale  # en mètres
-        self.emprise_longitudinale = emprise_longitudinale  # en mètres
+        self.lateral_footprint = lateral_footprint  # en mètres
+        self.longitudinal_footprint = longitudinal_footprint  # en mètres
         self.recouvrement_lat = percent_recouvrement_lat  # pourcentage
         self.recouvrement_lon = percent_recouvrement_lon  # pourcentage
-        self.increment_lon = self.emprise_longitudinale*(1-percent_recouvrement_lon)
-        self.increment_lat = self.emprise_laterale*(1-percent_recouvrement_lat)
-        #print('recouvrement_lat {} self.emprise_laterale {} self.increment_lat {}'.format(recouvrement_lat,self.emprise_laterale,self.increment_lat))
+        self.increment_lon = self.longitudinal_footprint*(1-percent_recouvrement_lon)
+        self.increment_lat = self.lateral_footprint*(1-percent_recouvrement_lat)
         self.compute_distances_and_bearings(self.points)
 
 
@@ -209,17 +208,17 @@ class PathPlanning:
         flip_left_right = False
 
         # the summit will be the first WP
-        self.waypoint_list.append(WayPoint(ref_point,self.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+        self.waypoint_list.append(WayPoint(ref_point,self.bearing, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
    
         
         for i in range(0,len(intersection_list)-1,2):
             if flip_left_right :
-                self.waypoint_list.append(WayPoint(intersection_list[i],self.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-                self.waypoint_list.append(WayPoint(intersection_list[i+1],self.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                self.waypoint_list.append(WayPoint(intersection_list[i],self.bearing, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
+                self.waypoint_list.append(WayPoint(intersection_list[i+1],self.bearing, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
 
             else :
-                self.waypoint_list.append(WayPoint(intersection_list[i+1],self.bearing+180, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
-                self.waypoint_list.append(WayPoint(intersection_list[i],self.bearing+180, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                self.waypoint_list.append(WayPoint(intersection_list[i+1],self.bearing+180, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
+                self.waypoint_list.append(WayPoint(intersection_list[i],self.bearing+180, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
             i=i+ 1
             flip_left_right = not flip_left_right
 
@@ -231,7 +230,7 @@ class PathPlanning:
         #    print('Point {} {} Angle {} Distance au suivant {}'.format(point.lat ,point.lon,point.angle,point.l))
         
  
-        #self.waypoint_list.append(WayPoint(self.centroid,0, emprise_laterale=0, emprise_longitudinale=0, wp_text="Centroid"))
+        #self.waypoint_list.append(WayPoint(self.centroid,0, lateral_footprint=0, longitudinal_footprint=0, wp_text="Centroid"))
                             
         # Find shortest distance between self.centroid and each segments
         distance_cp_min = float('inf')
@@ -248,17 +247,17 @@ class PathPlanning:
             i +=1
         print('Centroid to each segment minimum distance is {}'.format(distance_cp_min))
 
-        ovx=self.emprise_laterale*self.recouvrement_lat
+        ovx=self.lateral_footprint*self.recouvrement_lat
         #### NB of Rings
-        distance_between_rings = self.emprise_laterale*(1-self.recouvrement_lat)
-        print('distance_cp_min {} distance_between_rings/2 {} ovx {} self.emprise_laterale {}'.format(distance_cp_min,distance_between_rings/2,ovx,self.emprise_laterale))
+        distance_between_rings = self.lateral_footprint*(1-self.recouvrement_lat)
+        print('distance_cp_min {} distance_between_rings/2 {} ovx {} self.lateral_footprint {}'.format(distance_cp_min,distance_between_rings/2,ovx,self.lateral_footprint))
         if distance_cp_min < distance_between_rings/2 :
             nb_of_rings =0
             print("0 ring ! => exit")
             sys.exit()
 
         else:
-            nb_of_rings = ceil((distance_cp_min - self.recouvrement_lat*self.emprise_laterale)/(distance_between_rings))
+            nb_of_rings = ceil((distance_cp_min - self.recouvrement_lat*self.lateral_footprint)/(distance_between_rings))
 
         if nb_of_rings == 1:
             print("un seul ring ! => exit")
@@ -266,13 +265,13 @@ class PathPlanning:
 
         print('nb_of_rings is {}'.format(nb_of_rings))
 
-        distance_between_rings = (distance_cp_min -self.emprise_laterale)/(nb_of_rings -1)
+        distance_between_rings = (distance_cp_min -self.lateral_footprint)/(nb_of_rings -1)
 
         #print('old ovx {} old dr {}'.format(self.increment_lat,distance_between_rings))
-        #self.new_ovx = (nb_of_rings*self.emprise_laterale-distance_cp_min)/(nb_of_rings-1)
-        self.new_ovx = self.emprise_laterale-distance_between_rings
+        #self.new_ovx = (nb_of_rings*self.lateral_footprint-distance_cp_min)/(nb_of_rings-1)
+        self.new_ovx = self.lateral_footprint-distance_between_rings
         
-        #new_dr = (distance_cp_min-self.emprise_laterale)/(nb_of_rings-1)
+        #new_dr = (distance_cp_min-self.lateral_footprint)/(nb_of_rings-1)
         
         #print('new ovx {} new dr {}'.format(ovx,dr))
 
@@ -296,31 +295,31 @@ class PathPlanning:
         for point in vertices:
             if self.first_point :
             #if first_point :
-                # print('max is {}'.format(max([0,-self.emprise_laterale/tan(radians(point.angle))])))
-                d=point.l+max([0,-self.emprise_laterale/tan(radians(point.angle))])
+                # print('max is {}'.format(max([0,-self.lateral_footprint/tan(radians(point.angle))])))
+                d=point.l+max([0,-self.lateral_footprint/tan(radians(point.angle))])
                 print('premier point avec d={} sinon d aurait été d={}'.format(d,point.l))
             else:
                 d=point.l
 
             
-            nb_waypoints_per_segment=ceil((d-self.recouvrement_lon)/(self.emprise_longitudinale-self.recouvrement_lon))
+            nb_waypoints_per_segment=ceil((d-self.recouvrement_lon)/(self.longitudinal_footprint-self.recouvrement_lon))
             #print('Nb de waypoints {} d {} ovy {}'.format(nb_waypoints_per_segment,d,ovy))
 
-            new_ovy = (nb_waypoints_per_segment*self.emprise_longitudinale-point.l)/(nb_waypoints_per_segment-1)
-            new_dw = ((d - self.emprise_longitudinale)/(nb_waypoints_per_segment-1))
+            new_ovy = (nb_waypoints_per_segment*self.longitudinal_footprint-point.l)/(nb_waypoints_per_segment-1)
+            new_dw = ((d - self.longitudinal_footprint)/(nb_waypoints_per_segment-1))
 
             #print('Nb de waypoints {} new_dw is {}'.format(nb_waypoints_per_segment,new_dw))
 
-            #print('Ly {} new_ovy{}'.format(self.emprise_longitudinale,new_ovy))
+            #print('Ly {} new_ovy{}'.format(self.longitudinal_footprint,new_ovy))
 
             for i in range(nb_waypoints_per_segment):
                 
                 if i == 0 :
                     if self.first_point:
                         self.first_point = False
-                        new_point= point.destination((self.emprise_laterale/2), point.bearing+self.othogonal_increment)
+                        new_point= point.destination((self.lateral_footprint/2), point.bearing+self.othogonal_increment)
                         # on rajoute le 1er nouveau point, intersection de l'emprise de new_point avec le segment vertices[-1] et point
-                        waypoint_tmp = WayPoint(new_point,point.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale)
+                        waypoint_tmp = WayPoint(new_point,point.bearing, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint)
  
                         if self.isclockwise:
                         # print( ' self.X0 {} self.X1 {} waypoint_2.X0 {} waypoint_2.X1 {}'.format(self.X0,self.X1,waypoint_2.X0,waypoint_2.X1))
@@ -333,16 +332,16 @@ class PathPlanning:
                         self.extra_point.append(new_first_point)
 
                     else:    
-                        new_point_tmp= point.destination((self.emprise_laterale/2), point.bearing+self.othogonal_increment)
-                        new_point= new_point_tmp.destination((self.emprise_longitudinale/2), point.bearing)
-                    first_waypoints.append(WayPoint(new_point,point.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                        new_point_tmp= point.destination((self.lateral_footprint/2), point.bearing+self.othogonal_increment)
+                        new_point= new_point_tmp.destination((self.longitudinal_footprint/2), point.bearing)
+                    first_waypoints.append(WayPoint(new_point,point.bearing, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
                 else:
                     new_point= last_point.destination(new_dw, point.bearing)
 
                 if i == nb_waypoints_per_segment-1 :
-                    last_waypoints.append(WayPoint(new_point,point.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                    last_waypoints.append(WayPoint(new_point,point.bearing, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
 
-                self.waypoint_list.append(WayPoint(new_point,point.bearing, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale,wp_text='Ring nb='+str(ring_nb)))
+                self.waypoint_list.append(WayPoint(new_point,point.bearing, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint,wp_text='Ring nb='+str(ring_nb)))
                 last_point=new_point
         
         # On retire le dernier point ? 
@@ -428,7 +427,7 @@ class PathPlanning:
                     #from IPython import embed; embed()
 
                     self.waypoint_list.append(WayPoint(new_point, self.bearings[i],
-                                                       emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text=i))
+                                                       lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text=i))
 
                     C = point.destination(self.increment_lat*round_nb, self.bearings[i]+self.othogonal_increment)
                     D = C.destination( 50, self.bearings[i])
@@ -479,13 +478,13 @@ class PathPlanning:
                         #print('tmp_point.compassAngleTo(new_point) {} tmp_point.compassAngleTo((new_point_bis)) {}'.format(tmp_point.compassAngleTo(new_point) , tmp_point.compassAngleTo((new_point_bis))))
                        # print('tmp_point.distanceTo(new_point) {} tmp_point.distanceTo(new_point_bis){}'.format(tmp_point.distanceTo(new_point),tmp_point.distanceTo(new_point_bis)))
                        # print(' tmp_point {} {} new_point {} {} new_point_bis {} {}'.format(tmp_point.lat, tmp_point.lon, new_point.lat, new_point.lon, new_point_bis.lat, new_point_bis.lon))
-                       # self.waypoint_list.append(WayPoint(C, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="C"))
-                       # self.waypoint_list.append(WayPoint(D, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="D"))
-                       # self.waypoint_list.append(WayPoint(E, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="E"))
-                       # self.waypoint_list.append(WayPoint(F, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="F"))
-                       # self.waypoint_list.append(WayPoint(tmp_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="tmp_point"))
-                       # self.waypoint_list.append(WayPoint(new_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="new_point"))
-                       # self.waypoint_list.append(WayPoint(new_point_bis, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="new_point_bis"))
+                       # self.waypoint_list.append(WayPoint(C, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="C"))
+                       # self.waypoint_list.append(WayPoint(D, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="D"))
+                       # self.waypoint_list.append(WayPoint(E, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="E"))
+                       # self.waypoint_list.append(WayPoint(F, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="F"))
+                       # self.waypoint_list.append(WayPoint(tmp_point, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="tmp_point"))
+                       # self.waypoint_list.append(WayPoint(new_point, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="new_point"))
+                       # self.waypoint_list.append(WayPoint(new_point_bis, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="new_point_bis"))
                         #from IPython import embed; embed()
                         #finish = True
                         #break
@@ -515,13 +514,13 @@ class PathPlanning:
                         print('tmp_point.compassAngleTo(new_point) {} tmp_point.compassAngleTo((new_point_bis)) {}'.format(tmp_point.compassAngleTo(new_point) , tmp_point.compassAngleTo((new_point_bis))))
                         print('tmp_point.distanceTo(new_point) {} tmp_point.distanceTo(new_point_bis){}'.format(tmp_point.distanceTo(new_point),tmp_point.distanceTo(new_point_bis)))
                         print(' tmp_point {} {} new_point {} {} new_point_bis {} {}'.format(tmp_point.lat, tmp_point.lon, new_point.lat, new_point.lon, new_point_bis.lat, new_point_bis.lon))
-                        self.waypoint_list.append(WayPoint(C, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="C"))
-                        self.waypoint_list.append(WayPoint(D, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="D"))
-                        self.waypoint_list.append(WayPoint(E, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="E"))
-                        self.waypoint_list.append(WayPoint(F, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="F"))
-                        self.waypoint_list.append(WayPoint(tmp_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="tmp_point"))
-                        self.waypoint_list.append(WayPoint(new_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="new_point"))
-                        self.waypoint_list.append(WayPoint(new_point_bis, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="new_point_bis"))
+                        self.waypoint_list.append(WayPoint(C, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="C"))
+                        self.waypoint_list.append(WayPoint(D, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="D"))
+                        self.waypoint_list.append(WayPoint(E, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="E"))
+                        self.waypoint_list.append(WayPoint(F, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="F"))
+                        self.waypoint_list.append(WayPoint(tmp_point, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="tmp_point"))
+                        self.waypoint_list.append(WayPoint(new_point, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="new_point"))
+                        self.waypoint_list.append(WayPoint(new_point_bis, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="new_point_bis"))
                         #from IPython import embed; embed()
                         #finish = True
                         break 
@@ -548,7 +547,7 @@ class PathPlanning:
                         #le nouveau point coupe la parralle a un vieux segment. Il faut s'arretera l'intersection 
                         if not onSegment(segment[0],new_point,segment[1]):
                             print('le nouveau point coupe la parralle a un vieux segment')
-                            self.waypoint_list.append(WayPoint(intersec_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="Last"))
+                            self.waypoint_list.append(WayPoint(intersec_point, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="Last"))
                             finish = True
                             break
 
@@ -568,11 +567,11 @@ class PathPlanning:
                         distance = (H-self.increment_lat)/sin(radians(angle))
                         # Le +90 depend si on est clockwise !!!!
                         last_point = tmp_point.destination(distance, tmp_point.compassAngleTo(new_point))
-                        self.waypoint_list.append(WayPoint(last_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale, wp_text="Last"))
+                        self.waypoint_list.append(WayPoint(last_point, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint, wp_text="Last"))
                         finish = True
                         break
                     self.waypoint_list.append(WayPoint(
-                        new_point, self.bearings[i], emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                        new_point, self.bearings[i], lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
                 segments_list.append([tmp_point, new_point])
                 CD_segments_list.append([C, D])
                 tmp_point = new_point
@@ -603,10 +602,10 @@ class PathPlanning:
         tmp = None
         # premiers point
         self.waypoint_list.append(WayPoint(
-            tmp_A, direction_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+            tmp_A, direction_right, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
 
         self.waypoint_list.append(WayPoint(tmp_B, tmp_B.compassAngleTo(self.points[indice_droit+1]),
-                                           emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                                           lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
         i = 0
 
         # on s'arrete quand cette distance est très petite
@@ -682,14 +681,14 @@ class PathPlanning:
             # on ajoute les points dans le bon ordre
             if flip_left_right:
                 self.waypoint_list.append(WayPoint(
-                    intersect_right, direction_ext_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                    intersect_right, direction_ext_right, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
                 self.waypoint_list.append(WayPoint(
-                    intersect_left, direction_ext_left, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                    intersect_left, direction_ext_left, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
             else:
                 self.waypoint_list.append(WayPoint(
-                    intersect_left, direction_ext_left, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                    intersect_left, direction_ext_left, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
                 self.waypoint_list.append(WayPoint(
-                    intersect_right, direction_ext_right, emprise_laterale=self.emprise_laterale, emprise_longitudinale=self.emprise_longitudinale))
+                    intersect_right, direction_ext_right, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
 
 #            print('intersect_right {} intersect_left {}'.format(                intersect_right, intersect_left))
             tmp_A = intersect_left
@@ -720,10 +719,12 @@ class PathPlanning:
 
         return total_distance, nb_turns
 
-    def export_to_kml(self):
-        """ Export waypoints to kml for DJI UAV"""
-        pass
-
+    def export_to_list(self):
+        """ Export waypoints to a list"""
+        wp_list =[]
+        for wp in self.waypoint_list:
+            wp_list.append(wp.latlon())
+        return wp_list
 
 def main(args):
     """la fonction main"""
@@ -763,13 +764,13 @@ def main(args):
     points = deque([a, b, c, d, e,f,g])
 
 
-    emprise_laterale = 80
-    emprise_longitudinale = 50
+    lateral_footprint = 80
+    longitudinal_footprint = 50
 
 
 
-    Path_generator= PathPlanning(points=points,  bearing = 140,emprise_laterale=emprise_laterale,
-                                    emprise_longitudinale=emprise_longitudinale, start_point=start_point, percent_recouvrement_lat=0.6, percent_recouvrement_lon=0.80)
+    Path_generator= PathPlanning(points=points,  bearing = 140,lateral_footprint=lateral_footprint,
+                                    longitudinal_footprint=longitudinal_footprint, start_point=start_point, percent_recouvrement_lat=0.6, percent_recouvrement_lon=0.80)
     
     Path_generator.extra_point.append(start_point)
     Path_generator.generate_path("normal_plus")

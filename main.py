@@ -1,7 +1,12 @@
+#!/usr/bin/python
+# -*- coding:utf-8 -*-
 from pygeodesy.sphericalTrigonometry import LatLon
 from pathplanning import PathPlanning
 from waypointsmap import WaypointMap
 from collections import deque
+from math import tan,radians
+from drones import Drones
+import sys
 
 """
 Martinique
@@ -16,18 +21,28 @@ d= LatLon(14.80476281073443, -61.175343978459765)
 e= LatLon(14.804147551878703, -61.17414211429372)
 f= LatLon(14.802389075700889, -61.175630772903205)
 g= LatLon(14.801758424759862, -61.176496729696545)
-
-
 points = deque([a, b, c, d, e,f,g])
 
-
-emprise_laterale = 80
-emprise_longitudinale = 50
+flight_altitude = 20
 
 
 
-Path_generator= PathPlanning(points=points,  bearing = 140,emprise_laterale=emprise_laterale,
-                                emprise_longitudinale=emprise_longitudinale, start_point=start_point, percent_recouvrement_lat=0.6, percent_recouvrement_lon=0.80)
+a=Drones()
+
+## Choose sensor from json file
+
+# parameters of the camera
+fieldOfView = 100
+imageResolutionX = 2386
+imageResolutionY = 2386
+aspectRatio = imageResolutionX / imageResolutionY;
+
+# width and height of the projected area
+width = 2 * flight_altitude * tan(radians(fieldOfView / 2))
+height = width / aspectRatio
+
+Path_generator= PathPlanning(points=points,  bearing = 140,lateral_footprint=width,
+                                longitudinal_footprint=height, start_point=start_point, percent_recouvrement_lat=0.6, percent_recouvrement_lon=0.80)
 
 Path_generator.extra_point.append(start_point)
 
