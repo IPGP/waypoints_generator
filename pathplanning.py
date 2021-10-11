@@ -706,7 +706,7 @@ class PathPlanning:
             not_in_right = False
 
     def compute_length_and_turns(self):
-        """ Compute the path length and turn numbers"""
+        """ return the path length and turn numbers from and to the start point"""
 
         total_distance = 0.0
         nb_turns = 0
@@ -715,10 +715,12 @@ class PathPlanning:
         tmp_point = self.start_point
 
         for waypoint in self.waypoint_list:
-            total_distance += tmp_point.distanceTo(waypoint.point)
-            tmp_point= waypoint.point
+            #print('type(waypoint) {} type(tmp_point) {}'.format(waypoint,type(tmp_point)))
+            total_distance += tmp_point.distanceTo(LatLon(waypoint.point.lat,waypoint.point.lon))
+            tmp_point= LatLon(waypoint.point.lat,waypoint.point.lon)
             nb_turns +=1
 
+        total_distance += tmp_point.distanceTo(self.start_point)
 
       #  print('############################################################')
      #   print('{} Total distance is {}m with {} turns'.format(self.style, total_distance, nb_turns))
