@@ -1,14 +1,15 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
-from geopy import distance
+from collections import deque
+from math import tan, radians
+#import sys
+from datetime import datetime
 from numpy import Inf
 from pygeodesy.sphericalTrigonometry import LatLon
 from pathplanning import PathPlanning
 from waypointsmap import WaypointMap
-from collections import deque
-from math import tan,radians
 from drones import Drones
-import sys
+
 
 """
 Martinique
@@ -23,35 +24,37 @@ d = LatLon(14.80476281073443, -61.175343978459765)
 e = LatLon(14.804147551878703, -61.17414211429372)
 f = LatLon(14.802389075700889, -61.175630772903205)
 g = LatLon(14.801758424759862, -61.176496729696545)
-points = deque([a, b, c, d, e,f,g])
+points = deque([a, b, c, d, e, f, g])
 
-flight_altitude = 100
+FLIGHT_ALTITUDE = 100
 
-create_map = True
-#create_map = False
+CREATE_MAP = True
+#CREATE_MAP = False
 
 
-## Choose sensor from json file
-drones=Drones()
-camera_number = 0
+# Choose sensor from json file
+drones = Drones()
+CAMERA_NUMBER = 0
 try:
-    camera_number = int(input('Enter your camera number: '))
+    CAMERA_NUMBER = int(input('Enter your camera number: '))
 except ValueError:
     print("Not a number")
 
-camera = drones.get_camera(camera_number)
+camera = drones.get_camera(CAMERA_NUMBER)
 
-print('Selected camera is {}'.format(camera))
+start = datetime.now()
+
+print(F'Selected camera is {camera}')
 
 
 # parameters of the camera
 fieldOfView = camera.camera_fieldofview
 imageResolutionX = camera.camera_resolution_X
 imageResolutionY = camera.camera_resolution_Y
-aspectRatio = imageResolutionX / imageResolutionY;
+aspectRatio = imageResolutionX / imageResolutionY
 
 # width and height of the projected area
-width = 2 * flight_altitude * tan(radians(fieldOfView / 2))
+width = 2 * FLIGHT_ALTITUDE * tan(radians(fieldOfView / 2))
 height = width / aspectRatio
 
 distance_min = Inf
@@ -62,59 +65,59 @@ best_path_nb_turns = None
 best_path_distance = None
 
 print('Computing best angle ')
-animation = "|/-\\"
+ANIMATION = "|/-\\"
 idx = 0
 
 # find the best angles for nb_turns and total distance from start_point
-for angle in range(0,180,1):
-    print(animation[idx % len(animation)], end="\r")
+for angle in range(0, 180, 1):
+    print(ANIMATION[idx % len(ANIMATION)], end="\r")
     idx += 1
 
-    Path_generator= PathPlanning(points=points,  bearing = angle,lateral_footprint=width,
-                                    longitudinal_footprint=height, start_point=start_point, percent_recouvrement_lat=0.6, percent_recouvrement_lon=0.80)
+    Path_generator = PathPlanning(points=points,  bearing=angle, lateral_footprint=width,
+                                  longitudinal_footprint=height, start_point=start_point, percent_recouvrement_lat=0.6, percent_recouvrement_lon=0.80)
 
     Path_generator.extra_point.append(start_point)
 
     # Generate the path
-    Path_generator.generate_path("normal_plus")
+    Path_generator.generate_path_normal_plus()
 
-    tmp_length,tmp_nb_turns=Path_generator.compute_length_and_turns()
+    tmp_length, tmp_nb_turns = Path_generator.compute_length_and_turns()
     #print('Angle {} distance {} nb_turns {}'.format(angle,tmp_length,tmp_nb_turns))
-    # minimum distance 
-    if  tmp_length < distance_min:
+    # minimum distance
+    if tmp_length < distance_min:
         distance_min = tmp_length
         best_angle_distance = angle
         best_path_distance = Path_generator
     # minimum turns
-    if  tmp_nb_turns < nb_turns:
+    if tmp_nb_turns < nb_turns:
         tmp_nb_turns = nb_turns
         best_angle_nb_turns = angle
         best_path_nb_turns = Path_generator
 
 
-best_distance,best_distance_nb_turns=best_path_distance.compute_length_and_turns()
-best_nb_turns_distance,best_nb_turns=best_path_nb_turns.compute_length_and_turns()
+best_distance, best_distance_nb_turns = best_path_distance.compute_length_and_turns()
+best_nb_turns_distance, best_nb_turns = best_path_nb_turns.compute_length_and_turns()
 
 print('#######################')
-print('Distance : Angle {} distance {} nb_turns {}'.format(best_angle_distance,best_distance,best_distance_nb_turns))
-print('Nn Turns : Angle {} distance {} nb_turns {}'.format(best_angle_nb_turns,best_nb_turns_distance,best_nb_turns))
+print(F'Distance : Angle {best_angle_distance} distance {best_distance} nb_turns {best_distance_nb_turns}')
+print(F'Nn Turns : Angle {best_angle_nb_turns} distance {best_nb_turns_distance} nb_turns {best_nb_turns}')
 print('#######################')
 
 # J'ai choisit le moins de virage, mais la plus petite distance est aussi pertinante...
 Path_generator = best_path_nb_turns
 
 ################ Create the map ######
-if (create_map):
+if CREATE_MAP:
     the_map = WaypointMap(start_point)
 
     # Mapping area to the map
     the_map.add_polygon(points=points, color='#ff7800', fill=True,
                         fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
 
-
     # Waypoints to the map
     for wp in Path_generator.waypoint_list:
-        the_map.add_waypoint(wp, direction=False, footprint=False,footprint_markers=False)
+        the_map.add_waypoint(wp, direction=False,
+                             footprint=False, footprint_markers=False)
 
     # Add
     the_map.add_colored_waypoint_path(Path_generator.waypoint_list)
@@ -128,10 +131,14 @@ if (create_map):
     the_map.export_to_file('best_angle_nb_turns')
 
 
-
 # wp_list is the list of the waypoints
-wp_list =Path_generator.export_to_list()
+wp_list = Path_generator.export_to_list()
 print(wp_list)
 print("######################################")
-wp_list =Path_generator.export_to_paired_wp()
+wp_list = Path_generator.export_to_paired_wp()
 print(wp_list)
+
+end = datetime.now()
+duree = end-start
+print(F'Time elapsed: {duree}')
+print(end-start)

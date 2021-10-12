@@ -1,33 +1,26 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
 from typing import Deque
+from math import degrees, acos,  sqrt
+from collections import deque
 from geopy.distance import geodesic
-from math import degrees, acos, radians
-from geographiclib.geodesic import Geodesic
-from geopy import Point, distance, point
-import geopy
-from math import degrees, sqrt, sin, cos
-import sys
 import numpy as np
-from numpy import result_type
 from pygeodesy.sphericalTrigonometry import LatLon as LatLontri
 from pygeodesy.sphericalNvector import LatLon as LatLonsphericalNvector
-from collections import deque
 
 
-debug = False
-debug = True
+DEBUG = False
+DEBUG = True
 
 
 def LatLontrigo2nvector(A):
-    return(LatLonsphericalNvector(A.lat,A.lon))
+    """ Return the sphericalNvector.LatLon version of a sphericalTrigonometry.LatLon """
+    return LatLonsphericalNvector(A.lat,A.lon)
 
 def test_LatLontrigo2nvector():
+    """ Test the LatLontrigo2nvector method"""
     a = LatLontri(2,4)
-    if type(LatLontrigo2nvector(a))==LatLonsphericalNvector:
-        return True
-    else:
-        return False
+    return type(LatLontrigo2nvector(a))==LatLonsphericalNvector
 
 def getAngle(A, B, C):
     "return angle en degrees between A,B and C in degrees"
@@ -39,11 +32,11 @@ def getAngle(A, B, C):
 
 def getAnglelatlon(a, b,c):
     "return angle en degrees between Latlon A,B and C in degrees"
-    
+
     AB = a.distanceTo(b)
     BC = b.distanceTo(c)
     CA = c.distanceTo(a)
-    
+
     return degrees(acos((AB*AB+BC*BC-CA*CA)/(2*AB*BC)))
 
 
@@ -76,43 +69,41 @@ def iswithinLatLontTri(A, point1, point2):
 
 
 def onSegment(p, q, r):
-# Given three collinear points p, q, r, the function checks if
-# point q lies on line segment 'pr'
+    """ Given three collinear points p, q, r, the function checks if
+    point q lies on line segment 'pr'
+    """
     if ( (q.lat <= max(p.lat, r.lat)) and (q.lat >= min(p.lat, r.lat)) and
            (q.lon <= max(p.lon, r.lon)) and (q.lon >= min(p.lon, r.lon))):
         return True
     return False
- 
+
 
 def orientation_value(p, q, r):
     val = (float(q.lon - p.lon) * (r.lat - q.lat)) - (float(q.lat - p.lat) * (r.lon - q.lon))
     return val
+
 def orientation(p, q, r):
     # to find the orientation of an ordered triplet (p,q,r)
     # function returns the following values:
     # 0 : Collinear points
     # 1 : Clockwise points
     # 2 : Counterclockwise
-     
+
     # See https://www.geeksforgeeks.org/orientation-3-ordered-points/amp/
     # for details of below formula.
-     
+
     val = (float(q.lon - p.lon) * (r.lat - q.lat)) - (float(q.lat - p.lat) * (r.lon - q.lon))
-    if (val > 0):
-         
+    if val > 0:
         # Clockwise orientation
         return 1
-    elif (val < 0):
-         
+    elif val < 0:
         # Counterclockwise orientation
         return 2
     else:
-         
         # Collinear orientation
        # print('Collinear orientation ')
         return 0
- 
- 
+
 # The main function that returns true if
 # the line segment 'p1q1' and 'p2q2' intersect.
 # false if Collinear
@@ -125,7 +116,7 @@ def doIntersect(p1,q1,p2,q2):
     if p1.isequalTo(p2,eps=0.000001)or p1.isequalTo(q2,eps=0.000001) or q1.isequalTo(p2,eps=0.000001) or q1.isequalTo(q2,eps=0.000001):
         print("Same points")
         return False
-     
+
     # Find the 4 orientations required for
     # the general and special cases
     # print("#############################")
@@ -137,7 +128,7 @@ def doIntersect(p1,q1,p2,q2):
     o2 = orientation(p1, q1, q2)
     o3 = orientation(p2, q2, p1)
     o4 = orientation(p2, q2, q1)
- 
+
 
     # General case
     if ((o1 != o2) and (o3 != o4)):
@@ -149,9 +140,9 @@ def doIntersect(p1,q1,p2,q2):
         if (inter.distanceTo(p1) > 10000)and (inter.distanceTo(q2) > 10000):
             inter= inter.antipode()
         return inter
- 
+
     # Special Cases
-    """ 
+    """
     # p1 , q1 and p2 are collinear and p2 lies on segment p1q1
     if ((o1 == 0) and onSegment(p1, p2, q1)):
         return True
@@ -174,7 +165,7 @@ def doIntersect(p1,q1,p2,q2):
 
 
 def intersect_segments_list(new_vector, segments_list):
-    # Returns true if new_vector intersec with one at least one of the segement 
+    # Returns true if new_vector intersec with one at least one of the segement
     # of the segment list
     p1=new_vector[0]
     q1=new_vector[1]
@@ -186,7 +177,7 @@ def intersect_segments_list(new_vector, segments_list):
         if inter:
             #print('intersection avec {} {} {} {} et {} {} {} {}'.format(p1.lat,p1.lon,q1.lat,q1.lon,p2.lat,p2.lon,q2.lat,q2.lon))
             return inter,segment
-        
+
     return False,False
 
 
@@ -232,7 +223,7 @@ def intersect_points_bearings_latlon(A, bearing_A, B, bearing_B):
 
 
 def main():
-    print('test_LatLontrigo2nvector() {}'.format(test_LatLontrigo2nvector()))
+    print(F'test_LatLontrigo2nvector() {test_LatLontrigo2nvector()}')
 
     A = (48.844781966005414, 2.354806246580006)
     B = (48.845476490908986, 2.3559582742434224)
@@ -252,13 +243,13 @@ def main():
     p2= LatLontri(1, 2)
     q2= LatLontri(10, 2)
     doIntersect(p1,q1,p2,q2)
-    
+
     p1= LatLontri(10, 0)
     q1= LatLontri(0, 10)
     p2= LatLontri(0, 0)
     q2= LatLontri(10, 10)
     doIntersect(p1,q1,p2,q2)
-    
+
     p1= LatLontri(-5, -5)
     q1= LatLontri(0, 0)
     p2= LatLontri(1, 1)
@@ -277,10 +268,7 @@ def main():
     p=LatLontri(0,0)
     point_list=deque([LatLontri(1,1),LatLontri(2,2)])
 
-    print(lineseg_dists(p, point_list))
-
-
-    from IPython import embed; embed()
+    #from IPython import embed; embed()
 
 
 if __name__ == '__main__':
