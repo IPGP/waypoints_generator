@@ -10,7 +10,8 @@
           "resolution_Y": 3648,
           "fieldOfView" : 84,
           "x_sensor_size" :0,
-          "y_sensor_size" :0
+          "y_sensor_size" :0,
+          "comment" : 
         },
         {
           "camera": "Phantom4 RTK (4:3)",
@@ -36,27 +37,27 @@
         },
         {
           "camera": "Multispectral",
-          "resolution_X": 0,
-          "resolution_Y": 0,
-          "fieldOfView" : 0,
-          "x_sensor_size" :0,
-          "y_sensor_size" :0
+          "resolution_X": 4000,
+          "resolution_Y": 3000,
+          "fieldOfView" : 61.7,
+          "x_sensor_size" :6.2,
+          "y_sensor_size" :4.65
         },
         {
           "camera": "XT2 Thermique",
-          "resolution_X": 0,
-          "resolution_Y": 0,
-          "fieldOfView" : 0,
-          "x_sensor_size" :0,
-          "y_sensor_size" :0
+          "resolution_X": 640,
+          "resolution_Y": 512,
+          "fieldOfView" : 999999999999,
+          "x_sensor_size" :10.88,
+          "y_sensor_size" :8.7
         },  
         {
           "camera": "XT2 Optique",
-          "resolution_X": 0,
-          "resolution_Y": 0,
-          "fieldOfView" : 0,
-          "x_sensor_size" :0,
-          "y_sensor_size" :0
+          "resolution_X": 4000,
+          "resolution_Y": 3000,
+          "fieldOfView" : 99999999999,
+          "x_sensor_size" :7.6,
+          "y_sensor_size" :5.7
         }
       ]
     }

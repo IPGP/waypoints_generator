@@ -223,7 +223,8 @@ class PathPlanning:
       #  print('############################################################')
      #   print('{} Total distance is {}m with {} turns'.format(self.style, total_distance, nb_turns))
       #  print('############################################################')
-
+        self.total_distance = total_distance
+        self.nb_turns = nb_turns
         return total_distance, nb_turns
 
     def export_to_list(self):

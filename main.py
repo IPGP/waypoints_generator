@@ -2,19 +2,24 @@
 # -*- coding:utf-8 -*-
 from collections import deque
 from math import tan, radians
-#import sys
-from datetime import datetime
 from numpy import Inf
 from pygeodesy.sphericalTrigonometry import LatLon
 from pathplanning import PathPlanning
 from waypointsmap import WaypointMap
 from drones import Drones
+import matplotlib.pyplot as plt
 
+
+CREATE_MAP = True
+#CREATE_MAP = False
+
+PLOT_DISTANCES_NB_TURNS = False
 
 """
 Martinique
 """
 start_point = LatLon(14.810431373395028, -61.176753253004485)
+#start_point = LatLon(14.80431373395028, -61.175753253004485)
 start_point.text = 'Start'
 
 a = LatLon(14.801717517497558, -61.17830598375636)
@@ -28,8 +33,6 @@ points = deque([a, b, c, d, e, f, g])
 
 FLIGHT_ALTITUDE = 100
 
-CREATE_MAP = True
-#CREATE_MAP = False
 
 
 # Choose sensor from json file
@@ -42,10 +45,7 @@ except ValueError:
 
 camera = drones.get_camera(CAMERA_NUMBER)
 
-start = datetime.now()
-
 print(F'Selected camera is {camera}')
-
 
 # parameters of the camera
 fieldOfView = camera.camera_fieldofview
@@ -64,12 +64,17 @@ best_angle_nb_turns = None
 best_path_nb_turns = None
 best_path_distance = None
 
+turns_array=[]
+distances_array=[]
+
 print('Computing best angle ')
 ANIMATION = "|/-\\"
 idx = 0
+best_path_nb_turns = None
 
 # find the best angles for nb_turns and total distance from start_point
-for angle in range(0, 180, 1):
+RANGE = range(0, 180, 1)
+for angle in RANGE:
     print(ANIMATION[idx % len(ANIMATION)], end="\r")
     idx += 1
 
@@ -82,6 +87,12 @@ for angle in range(0, 180, 1):
     Path_generator.generate_path_normal_plus()
 
     tmp_length, tmp_nb_turns = Path_generator.compute_length_and_turns()
+    turns_array.append(tmp_nb_turns)
+    distances_array.append(tmp_length)
+
+    if not best_path_nb_turns:
+        best_path_nb_turns = Path_generator
+    
     #print('Angle {} distance {} nb_turns {}'.format(angle,tmp_length,tmp_nb_turns))
     # minimum distance
     if tmp_length < distance_min:
@@ -89,19 +100,50 @@ for angle in range(0, 180, 1):
         best_angle_distance = angle
         best_path_distance = Path_generator
     # minimum turns
-    if tmp_nb_turns < nb_turns:
-        tmp_nb_turns = nb_turns
+    if tmp_nb_turns < nb_turns :
+        nb_turns = tmp_nb_turns 
+        best_angle_nb_turns = angle
+        best_path_nb_turns = Path_generator
+        #print(F'Best nb turns {nb_turns} avec angle {angle}')
+
+    if tmp_nb_turns == nb_turns and tmp_length<best_path_nb_turns.total_distance:
+        nb_turns = tmp_nb_turns 
         best_angle_nb_turns = angle
         best_path_nb_turns = Path_generator
 
+    #if tmp_nb_turns > nb_turns :
+    #    break
 
 best_distance, best_distance_nb_turns = best_path_distance.compute_length_and_turns()
 best_nb_turns_distance, best_nb_turns = best_path_nb_turns.compute_length_and_turns()
 
 print('#######################')
 print(F'Distance : Angle {best_angle_distance} distance {best_distance} nb_turns {best_distance_nb_turns}')
-print(F'Nn Turns : Angle {best_angle_nb_turns} distance {best_nb_turns_distance} nb_turns {best_nb_turns}')
+print(F'Nb Turns : Angle {best_angle_nb_turns} distance {best_nb_turns_distance} nb_turns {best_nb_turns}')
 print('#######################')
+
+
+if PLOT_DISTANCES_NB_TURNS:
+    fig, ax1 = plt.subplots()
+
+    color = 'tab:red'
+    ax1.set_xlabel('Angle en °')
+    ax1.set_ylabel('nombre de virages', color=color)
+    RANGE = range(0, len(turns_array), 1)
+    ax1.plot(RANGE, turns_array, color=color)
+    ax1.tick_params(axis='y', labelcolor=color)
+
+    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+    color = 'tab:blue'
+    ax2.set_ylabel('distance en m', color=color)  # we already handled the x-label with ax1
+    ax2.plot(RANGE, distances_array, color=color)
+    ax2.tick_params(axis='y', labelcolor=color)
+    ax2.grid(True)
+
+    fig.tight_layout()  # otherwise the right y-label is slightly clipped
+    #plt.grid(True)
+    plt.show()
 
 # J'ai choisit le moins de virage, mais la plus petite distance est aussi pertinante...
 Path_generator = best_path_nb_turns
@@ -137,8 +179,3 @@ print(wp_list)
 print("######################################")
 wp_list = Path_generator.export_to_paired_wp()
 print(wp_list)
-
-end = datetime.now()
-duree = end-start
-print(F'Time elapsed: {duree}')
-print(end-start)
