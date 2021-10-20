@@ -19,7 +19,6 @@ class Camera:
         self.camera_x_sensor_size = json_camera['x_sensor_size']
         self.camera_y_sensor_size = json_camera['y_sensor_size']
 
-
     def __str__(self):
         camera_string = '{:^6} {:^22s} \t {:^20s}\t'.format(self.camera_number,self.drone_brand+' '+self.drone_name,self.camera_name)
         camera_string += '{:^9}{:^9}\t'.format(self.camera_resolution_X,self.camera_resolution_Y)
