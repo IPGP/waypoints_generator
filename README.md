@@ -91,6 +91,8 @@ les objets waypoints générés seront ajoutés à une liste
 -  Input
       -  array of waypoints  
 
+drone_orientations:
+![prof1](/drone_orientations/prof1_orientations.svg)
 
 Références
 https://link.springer.com/article/10.1007/s10846-016-0348-x
