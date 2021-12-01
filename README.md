@@ -91,8 +91,10 @@ les objets waypoints générés seront ajoutés à une liste
 -  Input
       -  array of waypoints  
 
-drone_orientations:
-![prof1](/drone_orientations/prof1_orientations.svg)
+**Drone orientation along one path**:
+Defines the successive positions (orientations) of the drone along one path, to acquire images with a defined overlap ratio, from one image to the next.
+In addition, the gimbal pitch is adapted so that photos are taken parallel to the ground.
+![prof1](/drone_orientation/prof1_orientations.svg)
 
 Références
 https://link.springer.com/article/10.1007/s10846-016-0348-x
