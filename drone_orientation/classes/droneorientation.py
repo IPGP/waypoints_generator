@@ -12,44 +12,101 @@ from matplotlib import collections as mc
 import matplotlib.patches as mpatches
 import pprint
 
+# Defines the successive positions (orientations) of the drone along one path,
+# to acquire images with a defined overlap ratio, from one image to the next.
+# In addition, the gimbal pitch is adapted so that photos are taken parallel to
+# the ground.
+# Copyright (C) 2021 Arthur Delorme - v0.9
+
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <http://www.gnu.org/licenses/>.
+#
+# (contact: delorme@ipgp.fr)
+
 class DroneOri(object):
     """
-    Define the successive positions (orientations) of the drone along the path,
-    to make acquisitions with a defined overlap ratio from one image to the
-    next
+    Defines the successive positions (orientations) of the drone along one path,
+    to acquire images with a defined overlap ratio, from one image to the next.
+    In addition, the gimbal pitch is adapted so that photos are taken parallel
+    to the ground.
     
-    Variables:
-        name                [string] name of the drone path
-        np_dsm              [np array] the DSM
-        tfw                 [string] path to the DSM .tfw file
-        a_east, a_north     [floats] position of 1st pt of the profile in the
-                                DSM (in degrees or meters, depending on the
-                                projection)
-        b_east, b_north     [floats] position of last pt of the profile in the
-                                DSM in degrees or meters, depending on the
-                                projection)
-        h                   [float] distance between the drone and the ground
-                                (in meters)
-        fov                 [float] camera field of view (in degrees)
-        ovlp                [float] overlap ratio between two consecutive images
-                                (shoud be between 0.5 and 0.95)
-        footprint           [float] image footprint (in meters)
-        profile             [list] profile between a and b in the DSM (e, n, z)
-        prof_az             [float] azimuth of the profile (in radians)
-        x_spacing, y        [float] DSM GSD
-        top_left_e, n       [float] coordinates of the top-left corner of the
-                                DSM top-left px
-        dsm_profile_margin  [int] margin to cover both endpoints of the profile,
-                                = ceil(footprint/2/x_spacing) + 1 (w/o units)
-                                (i.e. nb of extra values that were added to each
-                                end of self._profile, +1 by safety)
-        drone_ori           [list] drone orientation (e, n, z, pitch, az)
+    Methods:
+        __init__
+        compute_prof_az     Computes the azimuth of the profile
+        compute_footprint   Computes the footprint of an image, based on h and
+                                fov
+        read_tfw            Reads georeferencing information from the DSM .tfw
+                                file
+        dsm_profile         Makes a profile in the DSM
+        find_ori            Finds the gimbal pitch angle of the drone and its
+                                azimuth for the current position
+        apply_height        Applies the desired flight distance at the position
+                                found by find_ori(), taking the pitch into
+                                account
+        add_ori             Adds an orientation along the profile, at the given
+                                index
+        estim_overlp        Estimates the overlap ratio between two images
+        estim_b_on_h        Estimates the B/H ratio between two images
+        insert_ori          Inserts an orientation between two orientations
+        drone_orientations  Estimates the drone orientation at each shot, from
+                                the profile extracted from the DSM
+        draw_orientations   Draws the DSM profile with the drone orientations
     """
     
     def __init__(self, name, np_dsm, tfw, a_east, a_north, b_east, b_north, h,
-            fov, ovlp, footprint=None, profile=None, prof_az=None,
-            x_spacing=None, y_spacing=None, top_left_e=None, top_left_n=None,
-            dsm_profile_margin=None, drone_ori=None):
+            fov, ovlp, footprint=None, profile=[], prof_az=None, x_spacing=None,
+            y_spacing=None, top_left_e=None, top_left_n=None,
+            dsm_profile_margin=None, drone_ori={}, ovlp_linreg_x={},
+            ovlp_linreg_z={}, ovlp_linreg_stats={}, final_overlap={}):
+        """
+        Variables:
+            name                [string] name of the drone path
+            np_dsm              [np array] the DSM given as input
+            tfw                 [string] path to the DSM .tfw file
+            a_east, a_north     [floats] coordinates of the first point of the
+                                    profile in the DSM (in degrees or meters,
+                                    depending on the projection)
+            b_east, b_north     [floats] coordinates of the last point of the
+                                    profile in the DSM in degrees or meters,
+                                    depending on the projection)
+            h                   [float] flight distance, i.e. distance between
+                                    the drone and the ground (in meters)
+            fov                 [float] camera field of view (in degrees)
+            ovlp                [float] overlap ratio between two consecutive
+                                    images (shoud be between 0.5 and 0.95)
+            footprint           [float] image footprint (in meters)
+            profile             [list] profile between a and b in the DSM (e, n,
+                                    z)
+            prof_az             [float] azimuth of the profile (in radians)
+            x_ and y_spacing    [float] DSM GSD
+            top_left_e and _n   [float] coordinates of the top-left corner of
+                                    the DSM top-left px
+            dsm_profile_margin  [int] margin to cover both endpoints of the
+                                    profile
+                                    = ceil(footprint/2/x_spacing) + 1
+                                    (w/o units)
+                                    (i.e. nb of extra values that were added to
+                                    each end of self._profile, +1 by safety)
+            drone_ori           [list] drone orientation (e, n, z, pitch, az)
+            ovlp_linreg_x       [dict] x values of the linear regressions found
+                                    in estim_ovlp()
+            ovlp_linreg_z       [dict] z values of the linear regressions found
+                                    in estim_ovlp()
+            ovlp_linreg_stats   [dict] values and stats of the linear
+                                    regressions found in estim_ovlp()
+            final_overlap       [dict] overlap ratios for each pair of
+                                    orientations
+        """
+        
         self._name = name
         self._np_dsm = np_dsm
         self._tfw = tfw
@@ -69,16 +126,14 @@ class DroneOri(object):
         self._top_left_n = top_left_n
         self._dsm_profile_margin = dsm_profile_margin
         self._drone_ori = drone_ori
+        self._ovlp_linreg_x = ovlp_linreg_x
+        self._ovlp_linreg_z = ovlp_linreg_z
+        self._ovlp_linreg_stats = ovlp_linreg_stats
+        self._final_overlap = final_overlap
         
         self.compute_prof_az()
         self.compute_footprint()
         self.read_tfw()
-        
-        # For tests
-        self._ovlp_linreg_x = {}
-        self._ovlp_linreg_z = {}
-        self._ovlp_linreg_stats = {}
-        self._final_overlap = {}
     
     @property
     def name(self):
@@ -156,9 +211,25 @@ class DroneOri(object):
     def drone_ori(self):
         return self._drone_ori
     
+    @property
+    def ovlp_linreg_x(self):
+        return self._ovlp_linreg_x
+    
+    @property
+    def ovlp_linreg_z(self):
+        return self._ovlp_linreg_z
+    
+    @property
+    def ovlp_linreg_stats(self):
+        return self._ovlp_linreg_stats
+    
+    @property
+    def final_overlap(self):
+        return self._final_overlap
+    
     def compute_prof_az(self):
         """
-        Compute the azimuth of the profile
+        Computes the azimuth of the profile
         
         0 is the North; positive clockwise
         """
@@ -190,14 +261,14 @@ class DroneOri(object):
     
     def compute_footprint(self):
         """
-        Compute the footprint of an image, based on h and fov
+        Computes the footprint of an image, based on h and fov
         """
         
         self._footprint = 2 * self._h * tan(radians(self._fov) / 2)
     
     def read_tfw(self):
         """
-        Read georeferencing information from the DSM .tfw file
+        Reads georeferencing information from the DSM .tfw file
         
         Note: 0 is the only supported value for the rotation parameters
         """
@@ -219,9 +290,9 @@ class DroneOri(object):
     
     def dsm_profile(self):
         """
-        Make a profile in the DSM
+        Makes a profile in the DSM
         
-        Populate self._profile -> list of (e, n, z) coordinates
+        Populates self._profile -> list of (e, n, z) coordinates
         Horizontal distance between each point = the DSM GSD
         
         NOTE: !WE SHOULD ADD THE CASES WHERE a_col == b_col AND a_row == b_row!
@@ -235,7 +306,7 @@ class DroneOri(object):
         # (x,y) system: origin at the bottom-left of the image, x towards the
         # right and y upwards
         
-        # (AB): y = mx + p with A = profile start and B = end of profile
+        # (AB): y = mx + p with A = profile start and B = profile end
         
         # Image coordinates
         a_col = (self._a_east  - self._top_left_e) / self._x_spacing
@@ -272,8 +343,8 @@ class DroneOri(object):
         # by using the neighborhood, we need extra DSM information to estimate
         # the orientation of both endpoints (+1 by safety)
         self._dsm_profile_margin = ceil(self._footprint/2/self._x_spacing) + 1
-        col_min -= ceil(self._dsm_profile_margin * d) # Projeté sur absc
-        col_max += ceil(self._dsm_profile_margin * d) # Idem
+        col_min -= ceil(self._dsm_profile_margin * d) # Projected along x
+        col_max += ceil(self._dsm_profile_margin * d) # Same
         
         col_list = np.arange(col_min, col_max, d)
         
@@ -295,42 +366,45 @@ class DroneOri(object):
             n = coord[1] * self._y_spacing + self._top_left_n
             self._profile.append({'e':e, 'n':n, 'z':coord[2]})
     
-    def find_ori(self, index):
+    def find_ori(self, index, locked=False):
         """
-        Find the gimbal pitch angle of the drone and its azimuth for the current
-        position.
-        By position, I mean the position "on the ground". Next we will need to
-        apply the desired (fixed) height from the ground (vertical or not,
-        depending on the pitch), from this position.
+        Finds the gimbal pitch angle of the drone and its azimuth for the
+        current position
+        
+        By position, the position "on the ground" is meant. Next need to apply
+        the desired (fixed) height from the ground (vertical or not, depending
+        on the pitch), from this position. This is done by apply_height().
         
         Input:
             index           [int] index of the current position in self._profile
+            locked          [bool] wether this orientation can be moved or not
         
         Output:
+            index           [int] same as the input
             pitch           [float] gimbal pitch for the current position (in
                                 radians)
             drone_az        [bool] drone azimuth for the current position
                                 True  = same direction as the profile
                                 False = direction opposite to the profile
                                 direction
-            index           [int] same as the input
             footp_i_start   [int] index of the beginning of the footprint
             footp_i_end     [int] index of the end of the footprint
+            locked          [bool] same as the input
         """
         
         # To estimate the pitch, we need to evaluate the mean slope of the zone
         # captured by the image. To do so, we start at the index given in input
-        # and we explore the DSM on both sides, step by step, until the length
+        # and we explore the DSM on both sides, index by index, until the length
         # covered on a plane of slope = the mean slope is reached. This way, the
         # DSM values taken into account correspond to the actual footprint that
         # the image will encompass.
-        ###
-        # TODO?
+        ########
+        # TODO
         # Maybe it is a good idea to limit the pitch values, so that it is not
         # too far from nadir?
-        ###
+        ########
         inc = 1
-        slopes = [] # Collect the slope between each encompassed DSM indexes
+        slopes = [] # Collect the slope between each encompassed DSM index
         while True:
             delta_z_left = self._profile[index - inc]['z'] - \
                 self._profile[index - inc + 1]['z']
@@ -360,31 +434,49 @@ class DroneOri(object):
         footp_i_start = index - inc
         footp_i_end = index + inc
         
-        return {'pitch':            pitch,
-                'drone_az':         drone_az,
+        return {
                 'index':            index,
+                'pitch':            pitch,
+                'drone_az':         drone_az,
                 'footp_i_start':    footp_i_start,
-                'footp_i_end':      footp_i_end}
+                'footp_i_end':      footp_i_end,
+                'locked':           locked
+            }
     
-    def apply_height(self, index, pitch, drone_az):
+    def apply_height(self, index, pitch, drone_az, footp_i_start, footp_i_end,
+            locked):
         """
-        Apply the desired height to the current position, taking the pitch found
-        by find_ori() into account
+        Applies the desired flight distance at the position found by find_ori(),
+        taking the pitch into account
         
         Input:
-            index       [int] index of the current position in self._profile
-            pitch       [float] gimbal pitch for the current position (in
-                            radians)
-            drone_az    [bool] drone azimuth for the current position
-                            True  = same direction as the profile
-                            False = direction opposite to the profile direction
+            index           [int] index of the current position in self._profile
+            pitch           [float] gimbal pitch for the current position (in
+                                radians)
+            drone_az        [bool] drone azimuth for the current position
+                                True  = same direction as the profile
+                                False = direction opposite to the profile
+                                direction
+            footp_i_start   [int] index of the beginning of the footprint
+            footp_i_end     [int] index of the end of the footprint
+            locked          [bool] same as the input
         
         Output:
-            new_e       [float] (e, n, z) coordinates of the drone, considering
-            new_n           the pitch and drone_az
-            new_z       
-            pitch       [float] same as the input
-            drone_az    [bool] same as the input
+            index           [int] same as the input
+            e_grd           [float] (e, n, z) coordinates on the ground, before
+            n_grd               applying the flight distance, pitch and drone_az
+            z_grd               
+            index_abv       [int] index corresponding to the position of the
+                                drone above the ground, considering the flight
+                                distance, pitch and drone_az
+            e_abv           [float] (e, n, z) coordinates of the drone above the
+            n_abv               ground, considering the flight distance, pitch
+            z_abv               and drone_az
+            pitch           [float] same as the input
+            drone_az        [bool] same as the input
+            footp_i_start   [int] same as the input
+            footp_i_end     [int] same as the input
+            locked          [bool] same as the input
         """
         
         e = self._profile[index]['e']
@@ -399,76 +491,89 @@ class DroneOri(object):
         delta_n = abs(delta_index * cos(self._prof_az))
         
         if drone_az: # The drone shoots in the same direction as the profile
+            index_abv = index - delta_index
             if self._prof_az >= 0 and self._prof_az < pi/2:
-                new_e = e + delta_e
-                new_n = n + delta_n
+                e_abv = e + delta_e
+                n_abv = n + delta_n
             elif self._prof_az >= pi/2 and self._prof_az < pi:
-                new_e = e + delta_e
-                new_n = n - delta_n
+                e_abv = e + delta_e
+                n_abv = n - delta_n
             elif self._prof_az >= pi and self._prof_az < 3*pi/2:
-                new_e = e - delta_e
-                new_n = n - delta_n
+                e_abv = e - delta_e
+                n_abv = n - delta_n
             elif self._prof_az >= 3*pi/2 and self._prof_az < 2*pi:
-                new_e = e - delta_e
-                new_n = n + delta_n
+                e_abv = e - delta_e
+                n_abv = n + delta_n
         else: # The drone shoots to the direction opposite to the profile
+            index_abv = index + delta_index
             if self._prof_az >= 0 and self._prof_az < pi/2:
-                new_e = e - delta_e
-                new_n = n - delta_n
+                e_abv = e - delta_e
+                n_abv = n - delta_n
             elif self._prof_az >= pi/2 and self._prof_az < pi:
-                new_e = e - delta_e
-                new_n = n + delta_n
+                e_abv = e - delta_e
+                n_abv = n + delta_n
             elif self._prof_az >= pi and self._prof_az < 3*pi/2:
-                new_e = e + delta_e
-                new_n = n + delta_n
+                e_abv = e + delta_e
+                n_abv = n + delta_n
             elif self._prof_az >= 3*pi/2 and self._prof_az < 2*pi:
-                new_e = e + delta_e
-                new_n = n - delta_n
+                e_abv = e + delta_e
+                n_abv = n - delta_n
         
-        new_z = self._profile[index]['z'] + abs(self._h * sin(pitch))
+        z = self._profile[index]['z']
+        z_abv = z + abs(self._h * sin(pitch))
         
-        return {'new_e':    new_e,
-                'new_n':    new_n,
-                'new_z':    new_z,
-                'pitch':    pitch,
-                'drone_az': drone_az}
+        return {
+                'index':            index,
+                'e_grd':            e,
+                'n_grd':            n,
+                'z_grd':            z,
+                'index_abv':        index_abv,
+                'e_abv':            e_abv,
+                'n_abv':            n_abv,
+                'z_abv':            z_abv,
+                'pitch':            pitch,
+                'drone_az':         drone_az,
+                'footp_i_start':    footp_i_start,
+                'footp_i_end':      footp_i_end,
+                'locked':           locked
+            }
     
     def add_ori(self, index, locked=False):
         """
-        Add an orientation along the profile, at the given index
+        Adds an orientation along the profile, at the given index
         
         Input:
-            index           [int] index of the orientation to add
-            locked          [bool] wether this orientation can be moved or not
+            index           [int] index where to add the orientation,
+                                on the profile
+            locked          [bool] wether the position of this orientation can
+                                be shifted or not
         
         Output:
             ori_w_pitch     [dict] new orientation
         """
         
-        ori = self.find_ori(index)
+        ori = self.find_ori(index, locked=locked)
         ori_w_pitch = self.apply_height(
                 ori['index'],
                 ori['pitch'],
-                ori['drone_az']
+                ori['drone_az'],
+                ori['footp_i_start'],
+                ori['footp_i_end'],
+                ori['locked']
             )
-        ori_w_pitch.update({
-                'index':            ori['index'],
-                'footp_i_start':    ori['footp_i_start'],
-                'footp_i_end':      ori['footp_i_end'],
-                'locked':           locked
-            })
         return ori_w_pitch
     
     def estim_overlp(self, index1, index2):
         """
-        Estimate the overlap ratio between two images
-        Gather all values from the profile, that are included in the union of
-        the fooprints of the images. Then, calculate the linear regression of
-        this dataset.
+        Estimates the overlap ratio between two images
+        
+        Gathers all the values from the profile, that are included in the union
+        of the fooprints of the images. Then, calculates the linear regression
+        of this dataset.
         
         Input:
-            index1          [int] index of the first orientation
-            index2          [int] index if the second orientation
+            index1          [int] index of the first orientation on the profile
+            index2          [int] index if the second orientation on the progile
         
         Output:
             overlap ratio   [float] overlap ratio between the two orientations
@@ -492,7 +597,7 @@ class DroneOri(object):
              o2['footp_i_end']]).reshape((-1, 1))
         z = model.predict(x)
         
-        # To show linear regressions in draw_orientations
+        # To show the linear regressions in draw_orientations()
         self._ovlp_linreg_x[index2] = list(x.reshape((1, -1))[0])
         self._ovlp_linreg_z[index2] = list(z)
         self._ovlp_linreg_stats[index2] = [round(a, 2),
@@ -506,18 +611,18 @@ class DroneOri(object):
     
     def estim_b_on_h(self, index1, index2):
         """
-        Estimate the B/H ratio between two images
+        Estimates the B/H ratio between two images
         """
         
         
     
     def insert_ori(self, index1, index2):
         """
-        Insert an orientation between two orientations
+        Inserts an orientation between two orientations
         
         Input:
-            index1          [int] index of the first orientation
-            index2          [int] index if the second orientation
+            index1          [int] index of the first orientation on the profile
+            index2          [int] index if the second orientation on the profile
         
         Output:
             new_ori_w_pitch [dict] new orientation
@@ -525,24 +630,22 @@ class DroneOri(object):
         
         o1 = self._drone_ori[index1]
         o2 = self._drone_ori[index2]
-        
         new_ori_index = int(o1['index'] + (o2['index'] - o1['index']) / 2)
         return self.add_ori(new_ori_index)
     
     def drone_orientations(self):
         """
-        Estimate the drone orientation at each shot, from the profile extracted
+        Estimates the drone orientation at each shot, from the profile extracted
         from the DSM
         
         Note: we need to take into account the margin (dsm_profile_margin), to
-              localize where the profile starts and where it ends, in the list
-              self._profile
+              localize where the profile starts and where it ends, in the
+              profile list
         """
         
         self._drone_ori = {}
         
         # Initialization with the first and last points of the profile
-        
         # Start of profile
         index = self._dsm_profile_margin
         ori_start = self.add_ori(index, locked=True)
@@ -581,11 +684,13 @@ class DroneOri(object):
                         # then run the loop again, without adding any other
                         # orientations
                         if not o2['locked']:
-                            self._drone_ori.pop(index2) # Remove o2
+                            # Remove o2
+                            self._drone_ori.pop(index2)
                             self._ovlp_linreg_x.pop(index2)
                             self._ovlp_linreg_z.pop(index2)
                             self._ovlp_linreg_stats.pop(index2)
                             self._final_overlap.pop(index2)
+                            
                             drone_ori_by_keys = sorted(list( # Update the list
                                 self._drone_ori.keys()))
                             new_o2 = self.add_ori(index2-1) # VERY COSTLY! Maybe
@@ -611,7 +716,7 @@ class DroneOri(object):
                     print(
                         "Warning: duplicated key {} in new_drone_ori".format(k))
             
-            # If no new orientation were added, break the loop
+            # If no new orientation were added in this loop, break
             if not new_drone_ori:
                 break
             
@@ -621,7 +726,7 @@ class DroneOri(object):
     def draw_orientations(self, disp_dsm_prof=True, disp_drone_pos=True,
             disp_footp=False, disp_fov=True, disp_linereg=False):
         """
-        Draw the DSM profile with the drone orientations
+        Draws the DSM profile with the drone orientations
         """
         
         plt.rcParams['savefig.dpi'] = 300
@@ -629,8 +734,8 @@ class DroneOri(object):
         
         fig, ax = plt.subplots()
         
-        plt.title(
-            '{}\nFlight dist.: {} units, Field of view: {}°, Overlap: {}'.format(
+        plt.title('{}\nFlight dist.: {} units, Field of view: {}°, Overlap: '
+            '{}'.format(
                 self._name,
                 self._h,
                 self._fov,
@@ -643,24 +748,24 @@ class DroneOri(object):
             prof_x = np.arange(0, len(prof_z))
             ax.plot(prof_x, prof_z, linewidth=0.3)
         
-        # Extract info from drone orientations
+        # Extract info from the drone orientations
         drone_ori_by_keys = sorted(list(self._drone_ori.keys()))
-        drone_x = []
-        drone_z = []
+        drone_x_abv = []
+        drone_z_abv = []
         drone_color = []
         pitch = []
-        lines = []
-        lines2 = []
+        footp_lines = []
+        fov_lines = []
         for i in drone_ori_by_keys:
             o = self._drone_ori[i]
             
-            x = o['index']
-            z = o['new_z']
+            x_abv = o['index_abv']
+            z_abv = o['z_abv']
             look_dir = o['drone_az']
             p = o['pitch']
             
-            drone_x.append(x)
-            drone_z.append(z)
+            drone_x_abv.append(x_abv)
+            drone_z_abv.append(z_abv)
             
             if look_dir:
                 drone_color.append('r')
@@ -672,39 +777,43 @@ class DroneOri(object):
             footp_i_end = o['footp_i_end']
             footp_z_start = prof_z[footp_i_start]
             footp_z_end = prof_z[footp_i_end]
-            lines.extend([[(x, z), (footp_i_start, footp_z_start)],
-                [(x, z), (footp_i_end, footp_z_end)]])
+            footp_lines.extend([
+                    [(x_abv, z_abv), (footp_i_start, footp_z_start)],
+                    [(x_abv, z_abv), (footp_i_end, footp_z_end)]
+                ])
             
-            # Field of view (very similar to footprint, but more realistic)
+            # Field of view (very similar to footprint, probably more realistic)
             SIGHT_LEN = 30
             sight1 = p - radians(self._fov) / 2
             sight2 = p + radians(self._fov) / 2
             if not look_dir:
-                sight1_x = x - cos(sight1) * SIGHT_LEN
-                sight2_x = x - cos(sight2) * SIGHT_LEN
+                sight1_x = x_abv - cos(sight1) * SIGHT_LEN
+                sight2_x = x_abv - cos(sight2) * SIGHT_LEN
             else:
-                sight1_x = x + cos(sight1) * SIGHT_LEN
-                sight2_x = x + cos(sight2) * SIGHT_LEN
-            sight1_z = z + sin(sight1) * SIGHT_LEN
-            sight2_z = z + sin(sight2) * SIGHT_LEN
-            lines2.extend([[(x, z), (sight1_x, sight1_z)],
-                [(x, z), (sight2_x, sight2_z)]])
+                sight1_x = x_abv + cos(sight1) * SIGHT_LEN
+                sight2_x = x_abv + cos(sight2) * SIGHT_LEN
+            sight1_z = z_abv + sin(sight1) * SIGHT_LEN
+            sight2_z = z_abv + sin(sight2) * SIGHT_LEN
+            fov_lines.extend([
+                    [(x_abv, z_abv), (sight1_x, sight1_z)],
+                    [(x_abv, z_abv), (sight2_x, sight2_z)]
+                ])
         
         # Drone position
         if disp_drone_pos:
-            drone_pos = ax.scatter(drone_x, drone_z, c=drone_color, s=8)
+            drone_pos = ax.scatter(drone_x_abv, drone_z_abv, c=drone_color, s=8)
         
         # Display footprint
         if disp_footp:
-            lc = mc.LineCollection(lines, linewidths=0.1)
+            lc = mc.LineCollection(footp_lines, linewidths=0.1)
             ax.add_collection(lc)
         
         # Display field of view
         if disp_fov:
-            lc = mc.LineCollection(lines2, linewidths=0.1, color='k')
+            lc = mc.LineCollection(fov_lines, linewidths=0.1, color='k')
             ax.add_collection(lc)
         
-        # Linear regressions used to estimate the overlap ratio
+        # Display the linear regressions used to estimate the overlap ratio
         if disp_linereg:
             ovlp_linreg_x_by_keys = sorted(list(self._ovlp_linreg_x.keys()))
             ovlp_linreg_x = []
@@ -735,8 +844,8 @@ class DroneOri(object):
         ax.legend(handles=[r_marker, g_marker])
         
         plt.gca().set_aspect('equal')
-        zmin = min(min(prof_z), min(drone_z))
-        zmax = max(max(prof_z), max(drone_z))
+        zmin = min(min(prof_z), min(drone_z_abv))
+        zmax = max(max(prof_z), max(drone_z_abv))
         zmin -= 0.2 * (zmax - zmin)
         zmax += 0.2 * (zmax - zmin)
         ax.set(ylim=(zmin, zmax))
