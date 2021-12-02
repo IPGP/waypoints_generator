@@ -14,7 +14,7 @@ import pprint
 
 # Defines the successive positions (orientations) of the drone along one path,
 # to acquire images with a defined overlap ratio, from one image to the next.
-# In addition, the gimbal pitch is adapted so that photos are taken parallel to
+# In addition, the gimbal pitch is adapted, so that photos are taken parallel to
 # the ground.
 # Copyright (C) 2021 Arthur Delorme - v0.9
 
@@ -36,7 +36,7 @@ class DroneOri(object):
     """
     Defines the successive positions (orientations) of the drone along one path,
     to acquire images with a defined overlap ratio, from one image to the next.
-    In addition, the gimbal pitch is adapted so that photos are taken parallel
+    In addition, the gimbal pitch is adapted, so that photos are taken parallel
     to the ground.
     
     Methods:
