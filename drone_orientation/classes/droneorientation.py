@@ -42,6 +42,8 @@ class DroneOri(object):
     Methods:
         __init__
         compute_prof_az     Computes the azimuth of the profile
+        compute_fov         Calculates the camera field of view, in the
+                                longitudinal direction
         compute_footprint   Computes the footprint of an image, based on h and
                                 fov
         read_tfw            Reads georeferencing information from the DSM .tfw
@@ -67,7 +69,7 @@ class DroneOri(object):
             prof_az=None, x_spacing=None, y_spacing=None, top_left_e=None,
             top_left_n=None, dsm_profile_margin=None, drone_ori={},
             ovlp_linreg_x={}, ovlp_linreg_z={}, ovlp_linreg_stats={},
-            final_overlap={}):
+            final_overlap={}, fixed_pitch=None):
         """
         Variables:
             name                [string] name of the drone path
@@ -110,6 +112,13 @@ class DroneOri(object):
                                     regressions found in estim_ovlp()
             final_overlap       [dict] overlap ratios for each pair of
                                     orientations
+            fixed_pitch         [float] gimbal pitch value (in degrees)
+                                    1) If given, pitch will be fixed instead of
+                                    being estimated for each orientation.
+                                    2) Pitch should always be negative (-90 <=
+                                    fixed_pitch < 0). Here, by convention, a
+                                    positive pitch means that we want the drone
+                                    to shoot backwards.
         """
         
         self._name = name
@@ -137,6 +146,7 @@ class DroneOri(object):
         self._ovlp_linreg_z = ovlp_linreg_z
         self._ovlp_linreg_stats = ovlp_linreg_stats
         self._final_overlap = final_overlap
+        self._fixed_pitch = fixed_pitch
         
         self.compute_prof_az()
         self.compute_fov()
@@ -242,6 +252,10 @@ class DroneOri(object):
     @property
     def final_overlap(self):
         return self._final_overlap
+    
+    @property
+    def fixed_pitch(self):
+        return self._fixed_pitch
     
     def compute_prof_az(self):
         """
@@ -445,17 +459,29 @@ class DroneOri(object):
             
             inc += 1
         
-        pitch = np.mean(slopes) + pi/2 # True whether topography goes up or down
-        drone_az = True if pitch <= pi/2 else False # If topography goes down,
-                                                    # turn the drone over to
-                                                    # take the photo
-        pitch = pi - pitch if drone_az == False else pitch
-        pitch *= -1 # Will always shoot down, never up
-        if pitch > 0:
-            print("Warning: pitch is positive (should always be negative)")
-        
         footp_i_start = index - inc
         footp_i_end = index + inc
+        
+        if not self._fixed_pitch:
+            pitch = np.mean(slopes) + pi/2 # True whether topography goes up or
+                                           # down
+            drone_az = True if pitch <= pi/2 else False # If topography goes
+                                                        # down, turn the drone
+                                                        # over to take the photo
+            pitch = pi - pitch if drone_az == False else pitch
+            pitch *= -1 # Will always shoot down, never up
+        else:
+            # Pitch should always be negative, but by convention, a positive
+            # pitch means that we want the drone to shoot backwards
+            if self._fixed_pitch > 0:
+                pitch = -radians(self._fixed_pitch)
+                drone_az = False
+            else:
+                pitch = radians(self._fixed_pitch)
+                drone_az = True
+        
+        if pitch > 0:
+            print("Warning: pitch is positive (should always be negative)")
         
         return {
                 'index':            index,
@@ -747,7 +773,8 @@ class DroneOri(object):
             drone_ori_by_keys = sorted(list(self._drone_ori.keys()))
         
     def draw_orientations(self, disp_dsm_prof=True, disp_drone_pos=True,
-            disp_footp=False, disp_fov=True, disp_linereg=False):
+            disp_footp=False, disp_fov=True, disp_linereg=False,
+            print_ovlp=False, print_linereg=False):
         """
         Draws the DSM profile with the drone orientations
         """
@@ -848,20 +875,34 @@ class DroneOri(object):
             x = [i[0] for j in lines for i in j]
             y = [i[1] for j in lines for i in j]
             ax.plot(x, y, '.', markersize=0.4, color='k')
+        
+        # Print the overlap ratio of each pair, in the terminal
+        if print_ovlp:
             print('Overlap ratios:\nindex: overlap')
             pprint.pprint(self._final_overlap)
+        
+        # Print the linear regression information for each pair, in the terminal
+        if print_linereg:
             print('Linear regressions:\nindex: [a, b, r2_score]')
             pprint.pprint(self._ovlp_linreg_stats)
         
         # Title
-        plt.title('{}\nFlight dist.: {} m, Longitudinal FoV: {:.0f}°, '
-            'Overlap: {:.0f}%\n{} images'.format(
+        pitch = 'Pitch: '
+        if self._fixed_pitch:
+            pitch += '{}° (fixed)'.format(self._fixed_pitch)
+        else:
+            pitch += '<free>'
+        title = ('{}\nFlight dist.: {} m, Overlap: {:.0f}%, {}, '
+            'FoV: {:.0f}°'.format(
                 self._name,
                 self._h,
-                degrees(self._fov),
                 100*self._ovlp,
-                len(self._drone_ori)
+                pitch,
+                degrees(self._fov)
             ))
+        
+        title += '\n{} images'.format(len(self._drone_ori))
+        plt.title(title)
         
         # Legend
         r_marker = mpatches.Circle([], radius=5, color='r', label='forwards')

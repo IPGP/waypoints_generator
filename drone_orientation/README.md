@@ -7,7 +7,5 @@ In addition, the gimbal pitch is adapted, so that photos are taken parallel to t
 
 ## TODO
 
-* Adding a mode with fixed pitch (e.g. nadir). Makes it possible to account for the (fixed) lever arm, during orientation
-* Maybe limiting the pitch values, so that it is never too far from nadir (?)
-* Adding B/H ratio check between pairs of orientations, if necessary
+* If necessary, adding B/H ratio check between pairs of orientations
 * Making the algorithm faster (shifting the orientation to satisfy overlap is probably not the best idea)
