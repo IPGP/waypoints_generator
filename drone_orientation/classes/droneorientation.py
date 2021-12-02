@@ -63,10 +63,11 @@ class DroneOri(object):
     """
     
     def __init__(self, name, np_dsm, tfw, a_east, a_north, b_east, b_north, h,
-            fov, ovlp, footprint=None, profile=[], prof_az=None, x_spacing=None,
-            y_spacing=None, top_left_e=None, top_left_n=None,
-            dsm_profile_margin=None, drone_ori={}, ovlp_linreg_x={},
-            ovlp_linreg_z={}, ovlp_linreg_stats={}, final_overlap={}):
+            sensor_size, focal, ovlp, fov=None, footprint=None, profile=[],
+            prof_az=None, x_spacing=None, y_spacing=None, top_left_e=None,
+            top_left_n=None, dsm_profile_margin=None, drone_ori={},
+            ovlp_linreg_x={}, ovlp_linreg_z={}, ovlp_linreg_stats={},
+            final_overlap={}):
         """
         Variables:
             name                [string] name of the drone path
@@ -80,9 +81,12 @@ class DroneOri(object):
                                     depending on the projection)
             h                   [float] flight distance, i.e. distance between
                                     the drone and the ground (in meters)
-            fov                 [float] camera field of view (in degrees)
+            sensor_size         [tuple] size of the sensor (L,l) (in mm)
+            focal               [float] focal length of the sensor (in mm)
             ovlp                [float] overlap ratio between two consecutive
                                     images (shoud be between 0.5 and 0.95)
+            fov                 [float] camera field of view in the longitudinal
+                                    direction (in radians)
             footprint           [float] image footprint (in meters)
             profile             [list] profile between a and b in the DSM (e, n,
                                     z)
@@ -115,8 +119,10 @@ class DroneOri(object):
         self._b_east = b_east
         self._b_north = b_north
         self._h = h
-        self._fov = fov
+        self._sensor_size = sensor_size
+        self._focal = focal
         self._ovlp = ovlp
+        self._fov = fov
         self._footprint = footprint
         self._profile = profile
         self._prof_az = prof_az
@@ -132,6 +138,7 @@ class DroneOri(object):
         self._final_overlap = final_overlap
         
         self.compute_prof_az()
+        self.compute_fov()
         self.compute_footprint()
         self.read_tfw()
     
@@ -168,12 +175,20 @@ class DroneOri(object):
         return self._h
     
     @property
-    def fov(self):
-        return self._fov
+    def sensor_size(self):
+        return self._sensor_size
+    
+    @property
+    def focal(self):
+        return self._focal
     
     @property
     def ovlp(self):
         return self._ovlp
+    
+    @property
+    def fov(self):
+        return self._fov
     
     @property
     def footprint(self):
@@ -259,12 +274,19 @@ class DroneOri(object):
             else:
                 sys.exit("Error: delta_e = 0 and delta_n = 0")
     
+    def compute_fov(self):
+        """
+        Calculates the camera field of view, in the longitudinal direction
+        """
+        
+        self._fov = 2 * atan(self._sensor_size[1] / (2 * self._focal))
+    
     def compute_footprint(self):
         """
         Computes the footprint of an image, based on h and fov
         """
         
-        self._footprint = 2 * self._h * tan(radians(self._fov) / 2)
+        self._footprint = 2 * self._h * tan(self._fov / 2)
     
     def read_tfw(self):
         """
@@ -734,14 +756,6 @@ class DroneOri(object):
         
         fig, ax = plt.subplots()
         
-        plt.title('{}\nFlight dist.: {} units, Field of view: {}°, Overlap: '
-            '{}'.format(
-                self._name,
-                self._h,
-                self._fov,
-                self._ovlp
-            ))
-        
         # DSM profile
         if disp_dsm_prof:
             prof_z = [v['z'] for v in self._profile]
@@ -784,8 +798,8 @@ class DroneOri(object):
             
             # Field of view (very similar to footprint, probably more realistic)
             SIGHT_LEN = 30
-            sight1 = p - radians(self._fov) / 2
-            sight2 = p + radians(self._fov) / 2
+            sight1 = p - self._fov / 2
+            sight2 = p + self._fov / 2
             if not look_dir:
                 sight1_x = x_abv - cos(sight1) * SIGHT_LEN
                 sight2_x = x_abv - cos(sight2) * SIGHT_LEN
@@ -833,10 +847,20 @@ class DroneOri(object):
             x = [i[0] for j in lines for i in j]
             y = [i[1] for j in lines for i in j]
             ax.plot(x, y, '.', markersize=0.4, color='k')
-            print('Overlap ratios:')
+            print('Overlap ratios:\nindex: overlap')
             pprint.pprint(self._final_overlap)
-            print('Linear regressions:')
+            print('Linear regressions:\nindex: [a, b, r2_score]')
             pprint.pprint(self._ovlp_linreg_stats)
+        
+        # Title
+        plt.title('{}\nFlight dist.: {} m, Longitudinal FoV: {:.0f}°, '
+            'Overlap: {:.0f}%\n{} images'.format(
+                self._name,
+                self._h,
+                degrees(self._fov),
+                100*self._ovlp,
+                len(self._drone_ori)
+            ))
         
         # Legend
         r_marker = mpatches.Circle([], radius=5, color='r', label='forwards')
