@@ -71,7 +71,8 @@ class DroneOri(object):
         """
         Variables:
             name                [string] name of the drone path
-            np_dsm              [np array] the DSM given as input
+            np_dsm              [np array] the DSM given as input. The units
+                                    should be in meters in each dimension
             tfw                 [string] path to the DSM .tfw file
             a_east, a_north     [floats] coordinates of the first point of the
                                     profile in the DSM (in degrees or meters,
