@@ -14,7 +14,7 @@ np_dsm = np.array(ImagePil.open('mosaic.tif'))
 prof1 = DroneOri(
         name='prof1', np_dsm=np_dsm, tfw='mosaic.tfw',
         a_east=365649.5, a_north=6397299.5, b_east=366205.5, b_north=6396986.5,
-        h=20, sensor_size=(23.5,15.7), focal=24, ovlp=0.1
+        h=20, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=0.1
     )
 
 prof1.dsm_profile()

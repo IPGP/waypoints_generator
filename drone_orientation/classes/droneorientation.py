@@ -46,6 +46,7 @@ class DroneOri(object):
                                 longitudinal direction
         compute_footprint   Computes the footprint of an image, based on h and
                                 fov
+        compute_gsd         Calculates the images ground sampling distance (GSD)
         read_tfw            Reads georeferencing information from the DSM .tfw
                                 file
         dsm_profile         Makes a profile in the DSM
@@ -65,45 +66,45 @@ class DroneOri(object):
     """
     
     def __init__(self, name, np_dsm, tfw, a_east, a_north, b_east, b_north, h,
-            sensor_size, focal, ovlp, fov=None, footprint=None, profile=[],
-            prof_az=None, x_spacing=None, y_spacing=None, top_left_e=None,
-            top_left_n=None, dsm_profile_margin=None, drone_ori={},
-            ovlp_linreg_x={}, ovlp_linreg_z={}, ovlp_linreg_stats={},
-            final_overlap={}, fixed_pitch=None):
+            sensor_size, img_size, focal, ovlp, fov=None, footprint=None,
+            profile=[], prof_az=None, x_spacing=None, y_spacing=None,
+            top_left_e=None, top_left_n=None, dsm_profile_margin=None,
+            drone_ori={}, ovlp_linreg_x={}, ovlp_linreg_z={},
+            ovlp_linreg_stats={}, final_overlap={}, fixed_pitch=None):
         """
         Variables:
             name                [string] name of the drone path
-            np_dsm              [np array] the DSM given as input. The units
-                                    should be in meters in each dimension
+            np_dsm              [np array] the DSM given as input. The unit
+                                    must be the meter, for each dimension.
             tfw                 [string] path to the DSM .tfw file
-            a_east, a_north     [floats] coordinates of the first point of the
-                                    profile in the DSM (in degrees or meters,
-                                    depending on the projection)
-            b_east, b_north     [floats] coordinates of the last point of the
-                                    profile in the DSM in degrees or meters,
-                                    depending on the projection)
+            a_east, a_north     [floats] Easting and Northing coordinates of the
+                                    first point of the profile in the DSM (in m)
+            b_east, b_north     [floats] Easting and Northing coordinates of the
+                                    last point of the profile in the DSM (in m)
             h                   [float] flight distance, i.e. distance between
-                                    the drone and the ground (in meters)
+                                    the drone and the ground (in m)
             sensor_size         [tuple] size of the sensor (L,l) (in mm)
+            img_size            [tuple] size of the image (L,l) (in px)
             focal               [float] focal length of the sensor (in mm)
             ovlp                [float] overlap ratio between two consecutive
                                     images (shoud be between 0.5 and 0.95)
             fov                 [float] camera field of view in the longitudinal
-                                    direction (in radians)
-            footprint           [float] image footprint (in meters)
+                                    direction (in rad)
+            footprint           [float] image footprint (in m)
             profile             [list] profile between a and b in the DSM (e, n,
                                     z)
-            prof_az             [float] azimuth of the profile (in radians)
-            x_ and y_spacing    [float] DSM GSD
-            top_left_e and _n   [float] coordinates of the top-left corner of
-                                    the DSM top-left px
+            prof_az             [float] azimuth of the profile (in rad)
+            x_ and y_spacing    [float] DSM GSD (in m)
+            top_left_e and _n   [float] Easting and Northing coordinates of the
+                                    top-left corner of the DSM top-left pixel
+                                    (in m)
             dsm_profile_margin  [int] margin to cover both endpoints of the
-                                    profile
+                                    profile (w/o units)
                                     = ceil(footprint/2/x_spacing) + 1
-                                    (w/o units)
                                     (i.e. nb of extra values that were added to
                                     each end of self._profile, +1 by safety)
-            drone_ori           [list] drone orientation (e, n, z, pitch, az)
+            drone_ori           [list] drone orientation (see the add_ori()
+                                    method)
             ovlp_linreg_x       [dict] x values of the linear regressions found
                                     in estim_ovlp()
             ovlp_linreg_z       [dict] z values of the linear regressions found
@@ -112,13 +113,13 @@ class DroneOri(object):
                                     regressions found in estim_ovlp()
             final_overlap       [dict] overlap ratios for each pair of
                                     orientations
-            fixed_pitch         [float] gimbal pitch value (in degrees)
+            fixed_pitch         [float] gimbal pitch value (in deg)
                                     1) If given, pitch will be fixed instead of
                                     being estimated for each orientation.
                                     2) Pitch should always be negative (-90 <=
                                     fixed_pitch < 0). Here, by convention, a
                                     positive pitch means that we want the drone
-                                    to shoot backwards.
+                                    to shoot backwards, instead of forwards.
         """
         
         self._name = name
@@ -130,6 +131,7 @@ class DroneOri(object):
         self._b_north = b_north
         self._h = h
         self._sensor_size = sensor_size
+        self._img_size = img_size
         self._focal = focal
         self._ovlp = ovlp
         self._fov = fov
@@ -151,6 +153,7 @@ class DroneOri(object):
         self.compute_prof_az()
         self.compute_fov()
         self.compute_footprint()
+        self.compute_gsd()
         self.read_tfw()
     
     @property
@@ -188,6 +191,10 @@ class DroneOri(object):
     @property
     def sensor_size(self):
         return self._sensor_size
+    
+    @property
+    def img_size(self):
+        return self._img_size
     
     @property
     def focal(self):
@@ -302,6 +309,14 @@ class DroneOri(object):
         """
         
         self._footprint = 2 * self._h * tan(self._fov / 2)
+    
+    def compute_gsd(self):
+        """
+        Calculates the images ground sampling distance (GSD)
+        """
+        
+        self._gsd = self._h * self._sensor_size[0] / (self._focal * \
+            self._img_size[0])
     
     def read_tfw(self):
         """
@@ -419,7 +434,7 @@ class DroneOri(object):
         Output:
             index           [int] same as the input
             pitch           [float] gimbal pitch for the current position (in
-                                radians)
+                                rad)
             drone_az        [bool] drone azimuth for the current position
                                 True  = same direction as the profile
                                 False = direction opposite to the profile
@@ -501,7 +516,7 @@ class DroneOri(object):
         Input:
             index           [int] index of the current position in self._profile
             pitch           [float] gimbal pitch for the current position (in
-                                radians)
+                                rad)
             drone_az        [bool] drone azimuth for the current position
                                 True  = same direction as the profile
                                 False = direction opposite to the profile
@@ -514,13 +529,13 @@ class DroneOri(object):
             index           [int] same as the input
             e_grd           [float] (e, n, z) coordinates on the ground, before
             n_grd               applying the flight distance, pitch and drone_az
-            z_grd               
-            index_abv       [int] index corresponding to the position of the
-                                drone above the ground, considering the flight
-                                distance, pitch and drone_az
+            z_grd               (in m)
+            index_abv       [int] profile index corresponding to the position of
+                                the drone above the ground, considering the
+                                flight distance, pitch and drone_az
             e_abv           [float] (e, n, z) coordinates of the drone above the
             n_abv               ground, considering the flight distance, pitch
-            z_abv               and drone_az
+            z_abv               and drone_az (in m)
             pitch           [float] same as the input
             drone_az        [bool] same as the input
             footp_i_start   [int] same as the input
@@ -592,10 +607,9 @@ class DroneOri(object):
         Adds an orientation along the profile, at the given index
         
         Input:
-            index           [int] index where to add the orientation,
-                                on the profile
-            locked          [bool] wether the position of this orientation can
-                                be shifted or not
+            index           [int] profile index where to add the orientation
+            locked          [bool] wether the index of this orientation can be
+                                shifted or not
         
         Output:
             ori_w_pitch     [dict] new orientation
@@ -621,8 +635,8 @@ class DroneOri(object):
         of this dataset.
         
         Input:
-            index1          [int] index of the first orientation on the profile
-            index2          [int] index if the second orientation on the progile
+            index1          [int] profile index of the first orientation
+            index2          [int] profile index of the second orientation
         
         Output:
             overlap ratio   [float] overlap ratio between the two orientations
@@ -670,8 +684,8 @@ class DroneOri(object):
         Inserts an orientation between two orientations
         
         Input:
-            index1          [int] index of the first orientation on the profile
-            index2          [int] index if the second orientation on the profile
+            index1          [int] profile index of the first orientation
+            index2          [int] profile index of the second orientation
         
         Output:
             new_ori_w_pitch [dict] new orientation
@@ -893,14 +907,14 @@ class DroneOri(object):
         else:
             pitch += '<free>'
         title = ('{}\nFlight dist.: {} m, Overlap: {:.0f}%, {}, '
-            'FoV: {:.0f}°'.format(
+            'FoV: {:.0f}°, GSD: {:.1e} m'.format(
                 self._name,
                 self._h,
                 100*self._ovlp,
                 pitch,
-                degrees(self._fov)
+                degrees(self._fov),
+                self._gsd
             ))
-        
         title += '\n{} images'.format(len(self._drone_ori))
         plt.title(title)
         
