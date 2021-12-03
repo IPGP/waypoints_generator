@@ -839,7 +839,7 @@ class DroneOri(object):
                 ])
             
             # Field of view (very similar to footprint, probably more realistic)
-            SIGHT_LEN = 30
+            SIGHT_LEN = 15
             sight1 = p - self._fov / 2
             sight2 = p + self._fov / 2
             if not look_dir:
