@@ -45,7 +45,7 @@ class DroneOri(object):
         compute_fov         Calculates the camera field of view, in the
                                 longitudinal direction
         compute_footprint   Computes the footprint of an image, based on h and
-                                fov
+                                fov_lon
         compute_gsd         Calculates the images ground sampling distance (GSD)
         read_tfw            Reads georeferencing information from the DSM .tfw
                                 file
@@ -63,14 +63,16 @@ class DroneOri(object):
         drone_orientations  Estimates the drone orientation at each shot, from
                                 the profile extracted from the DSM
         draw_orientations   Draws the DSM profile with the drone orientations
+        export_ori          Exports all orientation information
     """
     
     def __init__(self, name, np_dsm, tfw, a_east, a_north, b_east, b_north, h,
-            sensor_size, img_size, focal, ovlp, fov=None, footprint=None,
-            profile=[], prof_az=None, x_spacing=None, y_spacing=None,
-            top_left_e=None, top_left_n=None, dsm_profile_margin=None,
-            drone_ori={}, ovlp_linreg_x={}, ovlp_linreg_z={},
-            ovlp_linreg_stats={}, final_overlap={}, fixed_pitch=None):
+            sensor_size, img_size, focal, ovlp, fov_lon=None, fov_lat=None,
+            footprint=None, profile=[], prof_az=None, x_spacing=None,
+            y_spacing=None, top_left_e=None, top_left_n=None,
+            dsm_profile_margin=None, drone_ori={}, ovlp_linreg_x={},
+            ovlp_linreg_z={}, ovlp_linreg_stats={}, final_overlap={},
+            fixed_pitch=None):
         """
         Variables:
             name                [string] name of the drone path
@@ -88,8 +90,8 @@ class DroneOri(object):
             focal               [float] focal length of the sensor (in mm)
             ovlp                [float] overlap ratio between two consecutive
                                     images (shoud be between 0.5 and 0.95)
-            fov                 [float] camera field of view in the longitudinal
-                                    direction (in rad)
+            fov_lon, fov_lat    [float] camera field of view in the longitudinal
+                                    and lateral directions (in rad)
             footprint           [float] image footprint (in m)
             profile             [list] profile between a and b in the DSM (e, n,
                                     z)
@@ -134,7 +136,8 @@ class DroneOri(object):
         self._img_size = img_size
         self._focal = focal
         self._ovlp = ovlp
-        self._fov = fov
+        self._fov_lon = fov_lon
+        self._fov_lat = fov_lat
         self._footprint = footprint
         self._profile = profile
         self._prof_az = prof_az
@@ -205,8 +208,12 @@ class DroneOri(object):
         return self._ovlp
     
     @property
-    def fov(self):
-        return self._fov
+    def fov_lon(self):
+        return self._fov_lon
+    
+    @property
+    def fov_lat(self):
+        return self._fov_lat
     
     @property
     def footprint(self):
@@ -301,14 +308,15 @@ class DroneOri(object):
         Calculates the camera field of view, in the longitudinal direction
         """
         
-        self._fov = 2 * atan(self._sensor_size[1] / (2 * self._focal))
+        self._fov_lat = 2 * atan(self._sensor_size[0] / (2 * self._focal))
+        self._fov_lon = 2 * atan(self._sensor_size[1] / (2 * self._focal))
     
     def compute_footprint(self):
         """
         Computes the footprint of an image, based on h and fov
         """
         
-        self._footprint = 2 * self._h * tan(self._fov / 2)
+        self._footprint = 2 * self._h * tan(self._fov_lon / 2)
     
     def compute_gsd(self):
         """
@@ -840,8 +848,8 @@ class DroneOri(object):
             
             # Field of view (very similar to footprint, probably more realistic)
             SIGHT_LEN = 15
-            sight1 = p - self._fov / 2
-            sight2 = p + self._fov / 2
+            sight1 = p - self._fov_lon / 2
+            sight2 = p + self._fov_lon / 2
             if not look_dir:
                 sight1_x = x_abv - cos(sight1) * SIGHT_LEN
                 sight2_x = x_abv - cos(sight2) * SIGHT_LEN
@@ -912,7 +920,7 @@ class DroneOri(object):
                 self._h,
                 100*self._ovlp,
                 pitch,
-                degrees(self._fov),
+                degrees(self._fov_lon),
                 self._gsd
             ))
         title += '\n{} images'.format(len(self._drone_ori))
@@ -933,3 +941,36 @@ class DroneOri(object):
         plt.tight_layout()
         
         fig.savefig('{}_orientations.svg'.format(self._name))
+    
+    def export_ori(self):
+        """
+        Exports all orientation information
+        
+        The export consists in a list of dict that contains, for each
+        orientation:
+            - path_name:            name of the drone path
+            - path_az:              azimuth of the path (in deg)
+            - drone_e, _n, _z:      3D coordinates of the drone (in m)
+            - drone_pitch:          drone gimbal pitch angle (in deg)
+            - drone_fov_lat, _lon:  camera field of view in the longitudinal and
+                                        lateral directions (in deg)
+            - drone_az:             drone azimuth; True  = same direction as the
+                                        profile; False = direction opposite to
+                                        the profile direction
+        """
+        
+        export = []
+        for ori in self._drone_ori:
+            o = self._drone_ori[ori]
+            export.append({
+                    'path_name':        self._name,
+                    'path_az':          degrees(self._prof_az),
+                    'drone_e':          o['e_abv'],
+                    'drone_n':          o['n_abv'],
+                    'drone_z':          o['z_abv'],
+                    'drone_pitch':      degrees(o['pitch']),
+                    'drone_fov_lat':    degrees(self._fov_lat),
+                    'drone_fov_lon':    degrees(self._fov_lon),
+                    'drone_az':         o['drone_az']
+                })
+        return export

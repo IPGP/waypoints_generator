@@ -20,6 +20,7 @@ prof1 = DroneOri(
 prof1.dsm_profile()
 prof1.drone_orientations()
 prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
+prof1_export_ori = prof1.export_for_map()
 
 # Example2: the pitch angle is estimated for each orientation
 np_dsm = np.array(ImagePil.open('rge_alti_1m_2.tif'))
@@ -31,6 +32,7 @@ prof2 = DroneOri(
 prof2.dsm_profile()
 prof2.drone_orientations()
 prof2.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
+prof2_export_ori = prof2.export_for_map()
 
 # Test unitaire fonction find_orientation
 # Fichiers test : test.tif et test2.tif, qui utilisent tous les deux test.tfw
