@@ -91,7 +91,6 @@ les objets waypoints générés seront ajoutés à une liste
 -  Input
       -  array of waypoints  
 
-
 Références
 https://link.springer.com/article/10.1007/s10846-016-0348-x
 https://www.mdpi.com/2504-446X/3/1/4/pdf-vor
