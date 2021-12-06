@@ -10,8 +10,7 @@
           "resolution_Y": 3648,
           "fieldOfView" : 84,
           "x_sensor_size" :0,
-          "y_sensor_size" :0,
-          "comment" : 
+          "y_sensor_size" :0
         },
         {
           "camera": "Phantom4 RTK (4:3)",
