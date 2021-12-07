@@ -15,7 +15,7 @@ from waypointsmap import WaypointMap
 from pyproj import Transformer
 from PIL import Image as ImagePil
 import numpy as np
-
+from dict2djikml import dict2djikml 
 from drone_orientation.classes.droneorientation import DroneOri
 
 # https://nbviewer.jupyter.org/github/python-visualization/folium/blob/master/examples/Rotate_icon.ipynb
@@ -112,17 +112,17 @@ class PathPlanning:
             preceding_point = this_point
             i += 1
 
-
-
     def generate_path_normal_plus(self):
         """ Generate the path """
 
-        # Find the best starting point for self.bearing
+        # Find the farthest-best starting point for self.bearing
+        # start_point = ref_point
 
         ref_point = self.points[0]
         distance_max_to_centroid = 0
         projection_point = None
 
+        ### 
         for point in self.points_LatLonS:
             intersection_point = intersection(point, self.bearing, self.CENTROID_LATLON_S, self.bearing+90)
             distance_to_centroid = intersection_point.distanceTo(self.CENTROID_LATLON_S)
@@ -148,10 +148,14 @@ class PathPlanning:
 
         i = 1
 
-        # We search until we do not have intersections points
+        # We search until we do not have intersections points between
+        # parralle lines to bearing with increasing distance from ref_point
         while intersection_exist :
             new_point = ref_point.destination(i*self.increment_lat, direction_to_centroid)
             new_point_LatLonS = LatLonS(new_point.lat, new_point.lon)
+            new_point_LatLonS.text="nw_pt"
+            self.extra_point.append(new_point_LatLonS)
+
             intersection_exist = False
             nb_intersection = 0
             # find intersections points
@@ -265,7 +269,7 @@ def main():
     start_point.text = 'Start'
 
 
-    a = LatLon(44.354611,3.804356)
+    a = LatLon(44.355611,3.804356)
     b = LatLon(44.356153,3.809774)
     c = LatLon(44.352146,3.810481)
     d = LatLon(44.349185,3.809540)
@@ -306,20 +310,23 @@ def main():
     the_map.export_to_file('normal_plus')
     # Path_generator.export_to_kml()
 
-    
+    for paire in Path_generator.export_to_paired_wp():
+        print(paire)
+    # conversion des coordonnes https://pyproj4.github.io/pyproj/stable/gotchas.html#upgrading-to-pyproj-2-from-pyproj-1
+    coordonates_transformer = Transformer.from_crs("epsg:4326", "epsg:2154")
+    reverse_coordonates_transformer = Transformer.from_crs("epsg:2154", "epsg:4326")
+    dic = []
     # load MNT
     np_dsm = np.array(ImagePil.open('drone_orientation/rge_alti_1m_2.tif'))
     tfw='drone_orientation/rge_alti_1m_2.tfw'
 
     for paire in Path_generator.export_to_paired_wp():
-        # conversion des coordonnes https://pyproj4.github.io/pyproj/stable/gotchas.html#upgrading-to-pyproj-2-from-pyproj-1
-        transformer = Transformer.from_crs("epsg:4326", "epsg:2154")
         
         # test pour ne garder que les paires de points
         if paire[0] and paire [1]:
             #print(paire)
-            a_east,a_north = transformer.transform(paire[0][0],paire[0][1])
-            b_east, b_north = transformer.transform(paire[1][0],paire[1][1])
+            a_east,a_north = coordonates_transformer.transform(paire[0][0],paire[0][1])
+            b_east, b_north = coordonates_transformer.transform(paire[1][0],paire[1][1])
             #print(a_east,a_north)
             #print(b_east,b_north)
             prof1 = DroneOri(
@@ -331,8 +338,9 @@ def main():
             prof1.dsm_profile()
             prof1.drone_orientations()
             prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
-            print(prof1.export_ori())
-            break
+            dic+=prof1.export_ori()
 
+
+    dict2djikml(dic,'test.kml',reverse_coordonates_transformer)
 if __name__ == '__main__':
     main()
