@@ -7,7 +7,6 @@ from geopy import Point, distance
 import geopy
 import sys
 from pygeodesy.dms import lonDMS
-
 from pygeodesy.units import Lat
 from utils import *
 from pygeodesy.sphericalTrigonometry import LatLon 

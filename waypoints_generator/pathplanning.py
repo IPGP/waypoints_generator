@@ -12,6 +12,11 @@ from pygeodesy.points import isclockwise, isconvex, centroidOf
 from utils import getAnglelatlon
 from waypoint import WayPoint
 from waypointsmap import WaypointMap
+from pyproj import Transformer
+from PIL import Image as ImagePil
+import numpy as np
+
+from drone_orientation.classes.droneorientation import DroneOri
 
 # https://nbviewer.jupyter.org/github/python-visualization/folium/blob/master/examples/Rotate_icon.ipynb
 # rotation des icones
@@ -29,8 +34,7 @@ class PathPlanning:
     def __init__(self, points,  bearing=0, lateral_footprint=0, longitudinal_footprint=0,
      percent_recouvrement_lat=0., percent_recouvrement_lon=0., orientation=None, start_point=None):
         """Pathplanning generates waypoints """
-
-        if not isconvex(points):
+        if not isconvex(tuple(points)):
             print("points must form a convex shape")
             sys.exit(-1)
         self.start_time = time.time_ns()
@@ -240,29 +244,41 @@ class PathPlanning:
 
 
 def main():
+    # """
+    # Martinique
+    # """
+    # start_point = LatLon(14.810431373395028, -61.176753253004485)
+    # start_point.text = 'Start'
+    # a = LatLon(14.801717517497558, -61.17830598375636)
+    # b = LatLon(14.803184637915658, -61.177470922032136)
+    # c = LatLon(14.804110982101069, -61.176259107347896)
+    # d = LatLon(14.80476281073443, -61.175343978459765)
+    # e = LatLon(14.804147551878703, -61.17414211429372)
+    # f = LatLon(14.802389075700889, -61.175630772903205)
+    # g = LatLon(14.801758424759862, -61.176496729696545)
+
+
     """
-    Martinique
+    Sapine
     """
-    start_point = LatLon(14.810431373395028, -61.176753253004485)
+    start_point = LatLon(44.350331,3.800653)
     start_point.text = 'Start'
-    a = LatLon(14.801717517497558, -61.17830598375636)
-    b = LatLon(14.803184637915658, -61.177470922032136)
-    c = LatLon(14.804110982101069, -61.176259107347896)
-    d = LatLon(14.80476281073443, -61.175343978459765)
-    e = LatLon(14.804147551878703, -61.17414211429372)
-    f = LatLon(14.802389075700889, -61.175630772903205)
-    g = LatLon(14.801758424759862, -61.176496729696545)
 
-#    points = deque([f, e, d, c, b, a])
-#    points = deque([a,f, e, d, c, b ])
-#    points = deque([a, b, c])
-#    points = deque([a, b, c, d])
-    points = deque([a, b, c, d, e, f, g])
 
-    lateral_footprint = 80
-    longitudinal_footprint = 50
+    a = LatLon(44.354611,3.804356)
+    b = LatLon(44.356153,3.809774)
+    c = LatLon(44.352146,3.810481)
+    d = LatLon(44.349185,3.809540)
+    e = LatLon(44.349576,3.804555)
+    f = LatLon(44.354023,3.803181)
 
-    Path_generator = PathPlanning(points=points,  bearing=140, lateral_footprint=lateral_footprint,
+    points = deque([a, b, c, d, e,f])
+
+    lateral_footprint = 200
+    longitudinal_footprint = 100
+    elevation = 100
+
+    Path_generator = PathPlanning(points=points,  bearing=160, lateral_footprint=lateral_footprint,
                                   longitudinal_footprint=longitudinal_footprint, start_point=start_point, percent_recouvrement_lat=0.6, percent_recouvrement_lon=0.80)
 
     Path_generator.extra_point.append(start_point)
@@ -290,12 +306,33 @@ def main():
     the_map.export_to_file('normal_plus')
     # Path_generator.export_to_kml()
 
-    wp_list = []
-    for wp in Path_generator.waypoint_list:
-        wp_list.append(wp.latlon())
+    
+    # load MNT
+    np_dsm = np.array(ImagePil.open('drone_orientation/rge_alti_1m_2.tif'))
+    tfw='drone_orientation/rge_alti_1m_2.tfw'
 
-   # from IPython import embed; embed()
-
+    for paire in Path_generator.export_to_paired_wp():
+        # conversion des coordonnes https://pyproj4.github.io/pyproj/stable/gotchas.html#upgrading-to-pyproj-2-from-pyproj-1
+        transformer = Transformer.from_crs("epsg:4326", "epsg:2154")
+        
+        # test pour ne garder que les paires de points
+        if paire[0] and paire [1]:
+            #print(paire)
+            a_east,a_north = transformer.transform(paire[0][0],paire[0][1])
+            b_east, b_north = transformer.transform(paire[1][0],paire[1][1])
+            #print(a_east,a_north)
+            #print(b_east,b_north)
+            prof1 = DroneOri(
+            name='prof1', np_dsm=np_dsm, tfw=tfw,
+            a_east=a_east, a_north=a_north, b_east=b_east, b_north=b_north,
+            h=elevation, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=0.1,
+            fixed_pitch=75
+            )
+            prof1.dsm_profile()
+            prof1.drone_orientations()
+            prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
+            print(prof1.export_ori())
+            break
 
 if __name__ == '__main__':
     main()
