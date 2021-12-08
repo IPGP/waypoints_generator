@@ -166,7 +166,7 @@ if CREATE_MAP:
 
     # Extra points (for debug) to the map
     for extra in Path_generator.extra_point:
-        the_map.add_extra(extra, text=extra.text)
+        the_map.add_extra(extra, text=extra.text, misc=extra.misc)
         #print('extra text '+extra.text + '\t\tExtra point\t' + str(extra.lat)+ '\t'+str(extra.lon))
 
     # Export the map
