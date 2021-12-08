@@ -41,6 +41,11 @@ class PathPlanning:
 
 
         self.points = points
+        ## All the points in LatLonS for reference
+        self.points_LatLonS = []
+        for point in self.points:
+            self.points_LatLonS.append(LatLonS(point.lat, point.lon))
+
         self.CENTROID_LATLON_S = centroidOf(self.points, LatLon=LatLonS)
         self.CENTROID_LATLON = centroidOf(self.points, LatLon=LatLon)
 
@@ -72,19 +77,15 @@ class PathPlanning:
             (1-percent_recouvrement_lat)
         self.compute_distances_and_bearings(self.points)
 
+    def create_segments(self):
         # Create all the segments of the area
         self.area_segments = []
         i = 0
         point_cycle = cycle(self.points)
         next_point = next(point_cycle)
-
-        ## All the points in LatLonS for reference
-        self.points_LatLonS = []
-
         while i < self.nb_points:
             this_point, next_point = next_point, next(point_cycle)
             self.area_segments.append([LatLonS(this_point.lat, this_point.lon), LatLonS(next_point.lat, next_point.lon)])
-            self.points_LatLonS.append(LatLonS(this_point.lat, this_point.lon))
             i += 1
 
         #print(F"Init\t{time.time_ns()-self.start_time}")
@@ -139,6 +140,12 @@ class PathPlanning:
         ref_point.text = 'ref point'
         #print(F"Pouf\t{time.time_ns()-self.start_time}")
 
+        # rotate the summits to have self.points[0] == ref_point
+        while self.points[0].lat != ref_point.lat and self.points[0].lon != ref_point.lon :
+            self.points.rotate()
+        # now we can find all the segments
+        self.create_segments()
+
         # find direction from ref_point to centroid
         direction_to_centroid = projection_point.compassAngleTo(self.CENTROID_LATLON)
 
@@ -153,8 +160,8 @@ class PathPlanning:
         while intersection_exist :
             new_point = ref_point.destination(i*self.increment_lat, direction_to_centroid)
             new_point_LatLonS = LatLonS(new_point.lat, new_point.lon)
-            new_point_LatLonS.text="nw_pt"
-            self.extra_point.append(new_point_LatLonS)
+            new_point_LatLonS.text="nw_pt "+str(i)
+            #self.extra_point.append(new_point_LatLonS)
 
             intersection_exist = False
             nb_intersection = 0
@@ -170,25 +177,30 @@ class PathPlanning:
                     intersection_list.append(intersection_point_A)
                     intersection_exist = True
                     nb_intersection +=1
+                    #print(F'{intersection_point_A.lat}\t{intersection_point_A.lon}')
                 elif intersection_point_B and intersection_point_B.iswithin(segment[0], segment[1]):
                     intersection_list.append(intersection_point_B)
                     intersection_exist = True
                     nb_intersection +=1
+                    #print(F'\t\t{intersection_point_B.lat}\t{intersection_point_B.lon}')
+
                 # If 2 intersections have been found, we break this loop
-                if nb_intersection == 2:
+                if nb_intersection >= 2:
                     break
 
             i += 1
         #print(F"Paf\t{time.time_ns()-self.start_time}")
 
-        # we need to reorder the pairs of point
-        flip_left_right = False
+        # we need to reorder the pairs of intersection point
+        flip_left_right = True
 
+        #On peut ajouter le point de référence, mais iln'est pas sur un profil et ne sera donc pas utilisé
         # the summit will be the first WP
-        self.waypoint_list.append(WayPoint(
-            ref_point, self.bearing, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
+        #self.waypoint_list.append(WayPoint(
+        #    ref_point, self.bearing, lateral_footprint=self.lateral_footprint, longitudinal_footprint=self.longitudinal_footprint))
 
-        self.paired_waypoints_list.append([[ref_point.lat, ref_point.lon], []])
+        #On peut ajouter le point de référence, mais iln'est pas sur un profil et ne sera donc pas utilisé
+        #self.paired_waypoints_list.append([[ref_point.lat, ref_point.lon], []])
 
         for i in range(0, len(intersection_list)-1, 2):
             if flip_left_right:
@@ -207,7 +219,7 @@ class PathPlanning:
                                                   intersection_list[i].lat, intersection_list[i].lon]])
 
             flip_left_right = not flip_left_right
-
+            
         #print(F"Plouf\t{time.time_ns()-self.start_time}")
 
     def compute_length_and_turns(self):
@@ -288,6 +300,54 @@ def main():
     Path_generator.extra_point.append(start_point)
     Path_generator.generate_path_normal_plus()
 
+    for paire in Path_generator.export_to_paired_wp():
+        print(paire)
+
+    ################### Profils ##########################
+
+    # conversion des coordonnes https://pyproj4.github.io/pyproj/stable/gotchas.html#upgrading-to-pyproj-2-from-pyproj-1
+    epsg_mnt = "epsg:2154"
+    coordonates_transformer = Transformer.from_crs("WGS84", epsg_mnt)
+    reverse_coordonates_transformer = Transformer.from_crs(epsg_mnt, "WGS84")
+    final_waypoint_dict = []
+    # load MNT
+    np_dsm = np.array(ImagePil.open('waypoints_generator/drone_orientation/rge_alti_1m_2.tif'))
+    tfw='waypoints_generator/drone_orientation/rge_alti_1m_2.tfw'
+
+    for paire in Path_generator.export_to_paired_wp():
+        
+        # test pour ne garder que les paires de points
+        if paire[0] and paire [1]:
+            #print(paire)
+            a_east,a_north = coordonates_transformer.transform(paire[0][0],paire[0][1])
+            b_east, b_north = coordonates_transformer.transform(paire[1][0],paire[1][1])
+            print(F'\nCoordonnées converties => DroneOri a \t{a_north}\t{a_east}')
+            print(F'Coordonnées converties => DroneOri b \t{b_north}\t{b_east}\n')
+            #print(b_east,b_north)
+            prof1 = DroneOri(
+            name='prof1', np_dsm=np_dsm, tfw=tfw,
+            a_east=a_east, a_north=a_north, b_east=b_east, b_north=b_north,
+            h=elevation, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=0.1,
+            fixed_pitch=75
+            )
+            prof1.dsm_profile()
+            prof1.drone_orientations()
+            prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
+            final_waypoint_dict+=prof1.export_ori()
+
+    ################### kml from profils ##########################
+    wp_extras=dict2djikml(final_waypoint_dict,'test.kml',reverse_coordonates_transformer)
+    tmp_wp=wp_extras[0]
+    print('######################@')
+    print('distances entre chaque WP')
+    for wp in wp_extras:
+        print(F'{tmp_wp.distanceTo(wp)}')
+        tmp_wp=wp
+    print('######################@')
+    ################### html map ##########################
+    for wp in wp_extras:
+        Path_generator.extra_point.append(wp)
+
     # export map
     the_map = WaypointMap(start_point)
     # on place les limites de la zone
@@ -302,45 +362,14 @@ def main():
     the_map.add_colored_waypoint_path(Path_generator.waypoint_list)
 
     # Add extra points (for DEBUG)
+    #print("#### Extra ####")
     for extra in Path_generator.extra_point:
-        the_map.add_extra(extra, text=extra.text)
         #print('extra text '+extra.text + '\t\tExtra point\t' + str(extra.lat)+ '\t'+str(extra.lon))
+        the_map.add_extra(extra, text=extra.text)
 
     # Exportation de la carte
-    the_map.export_to_file('normal_plus')
+    the_map.export_to_file('profil_waypoints')
     # Path_generator.export_to_kml()
 
-    for paire in Path_generator.export_to_paired_wp():
-        print(paire)
-    # conversion des coordonnes https://pyproj4.github.io/pyproj/stable/gotchas.html#upgrading-to-pyproj-2-from-pyproj-1
-    coordonates_transformer = Transformer.from_crs("epsg:4326", "epsg:2154")
-    reverse_coordonates_transformer = Transformer.from_crs("epsg:2154", "epsg:4326")
-    dic = []
-    # load MNT
-    np_dsm = np.array(ImagePil.open('drone_orientation/rge_alti_1m_2.tif'))
-    tfw='drone_orientation/rge_alti_1m_2.tfw'
-
-    for paire in Path_generator.export_to_paired_wp():
-        
-        # test pour ne garder que les paires de points
-        if paire[0] and paire [1]:
-            #print(paire)
-            a_east,a_north = coordonates_transformer.transform(paire[0][0],paire[0][1])
-            b_east, b_north = coordonates_transformer.transform(paire[1][0],paire[1][1])
-            #print(a_east,a_north)
-            #print(b_east,b_north)
-            prof1 = DroneOri(
-            name='prof1', np_dsm=np_dsm, tfw=tfw,
-            a_east=a_east, a_north=a_north, b_east=b_east, b_north=b_north,
-            h=elevation, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=0.1,
-            fixed_pitch=75
-            )
-            prof1.dsm_profile()
-            prof1.drone_orientations()
-            prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
-            dic+=prof1.export_ori()
-
-
-    dict2djikml(dic,'test.kml',reverse_coordonates_transformer)
 if __name__ == '__main__':
     main()

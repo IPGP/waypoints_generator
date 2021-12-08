@@ -17,9 +17,9 @@ class WaypointMap:
     "WaypointMap class to plot waypoints of a mission in a nice map"
 
     def __init__(self,startpoint=None):
-        self.start_icon_path =r"icons/star_yellow.png"
-        self.WP_icon_path_black_path=r"icons/circle_black.png"
-        self.WP_icon_path_red_path=r"icons/circle_red.png"
+        self.start_icon_path =r"waypoints_generator/icons/star_yellow.png"
+        self.WP_icon_path_black_path=r"waypoints_generator/icons/circle_black.png"
+        self.WP_icon_path_red_path=r"waypoints_generator/icons/circle_red.png"
         self.startpoint=startpoint
         self.waypoint_nb = 0
         self.the_map = create_folium_map(
@@ -125,7 +125,7 @@ class WaypointMap:
         
         icon_red = folium.features.CustomIcon(icon_image=self.WP_icon_path_red_path, icon_size=(15, 15))
 
-        folium.Marker(location=[waypoint.lat,waypoint.lon], popup='Extra '+waypoint.text,
+        folium.Marker(location=[waypoint.lat,waypoint.lon], 
         tooltip=text+"<br>"+str(waypoint.lat)+"<br>"+str(waypoint.lon), icon=icon_red).add_to(self.the_map)
 
        

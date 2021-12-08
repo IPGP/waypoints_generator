@@ -30,6 +30,7 @@ __pycache__/
 Network Trash Folder
 Temporary Items
 .apdisk
+.vscode
 
 # End of https://www.toptal.com/developers/gitignore/api/macos
 
@@ -181,3 +182,7 @@ jupyter_holoviews/ml_annotators/.ipynb_checkpoints/ml_annotators-checkpoint.ipyn
 jupyter_holoviews/ml_annotators/.ipynb_checkpoints/Untitled-checkpoint.ipynb
 best_path_distance.html
 best_angle_nb_turns.html
+profil_waypoints.html
+test.kml
+.gitignore
+prof1_orientations.svg

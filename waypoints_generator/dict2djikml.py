@@ -1,9 +1,12 @@
 from string import Template
 import sys
 from pyproj import Transformer
+from pygeodesy.sphericalNvector  import intersection, LatLon as LatLonS
 
 
 def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='hover',speed = 5,turnmode = 'Auto'):
+  extra_points=[]
+
   if onfinish == 'hover':
       ON_FINISH = "Hover"
   elif onfinish == 'gohome':
@@ -143,7 +146,9 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='h
 
       name = 'WP_'+str(waypoint_nb)
       lat , lon = reverse_coordonates_transformer.transform(waypoint['drone_e'],waypoint['drone_n'])
-      #lon , lat = waypoint['drone_e'],waypoint['drone_n']
+      tmp_extra_point= LatLonS(lat, lon)
+      tmp_extra_point.text=name+" "+str(waypoint['drone_z'])
+      extra_points.append(tmp_extra_point)
       height = waypoint['drone_z']
       if waypoint['drone_az']:
         heading = 0
@@ -177,3 +182,4 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='h
 
   with open(output_filename, 'w') as output_file:
       output_file.write(XML_string)
+  return extra_points
