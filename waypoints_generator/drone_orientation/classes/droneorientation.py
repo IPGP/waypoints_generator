@@ -3,6 +3,7 @@
 
 import sys
 from math import tan, radians, degrees, atan, cos, ceil, sqrt, floor, pi, sin
+from PIL import Image as ImagePil
 import numpy as np
 from sklearn.linear_model import LinearRegression
 import matplotlib
@@ -41,6 +42,7 @@ class DroneOri(object):
     
     Methods:
         __init__
+        read_dsm            Reads the DSM data
         compute_prof_az     Computes the azimuth of the profile
         compute_fov         Calculates the camera field of view, in the
                                 longitudinal direction
@@ -66,23 +68,31 @@ class DroneOri(object):
         export_ori          Exports all orientation information
     """
     
-    def __init__(self, name, np_dsm, tfw, a_east, a_north, b_east, b_north, h,
-            sensor_size, img_size, focal, ovlp, fov_lon=None, fov_lat=None,
-            footprint=None, profile=[], prof_az=None, x_spacing=None,
-            y_spacing=None, top_left_e=None, top_left_n=None,
+    def __init__(self, name, dsm, tfw, a_east, a_north, b_east, b_north,
+            h, sensor_size, img_size, focal, ovlp, ref_alti=0, fov_lon=None,
+            fov_lat=None, footprint=None, profile=[], prof_az=None,
+            x_spacing=None, y_spacing=None, top_left_e=None, top_left_n=None,
             dsm_profile_margin=None, drone_ori={}, ovlp_linreg_x={},
             ovlp_linreg_z={}, ovlp_linreg_stats={}, final_overlap={},
             fixed_pitch=None):
         """
         Variables:
             name                [string] name of the drone path
-            np_dsm              [np array] the DSM given as input. The unit
-                                    must be the meter, for each dimension.
+            dsm                 [string] path to the DSM .tif file; the unit
+                                    must be the meter, for each dimension (i.e.
+                                    not in the WGS84 reference system)
             tfw                 [string] path to the DSM .tfw file
             a_east, a_north     [floats] Easting and Northing coordinates of the
                                     first point of the profile in the DSM (in m)
             b_east, b_north     [floats] Easting and Northing coordinates of the
                                     last point of the profile in the DSM (in m)
+            ref_alti            [float] reference altitude (in m, default is 0),
+                                    which will be subtracted to the z coordinate
+                                    of the drone; it can be either 0, to keep
+                                    the altitude value as z, or another altitude
+                                    (e.g. the drone take off altitude), to
+                                    ensure that z is the height with respect to
+                                    that altitude
             h                   [float] flight distance, i.e. distance between
                                     the drone and the ground (in m)
             sensor_size         [tuple] size of the sensor (L,l) (in mm)
@@ -125,12 +135,14 @@ class DroneOri(object):
         """
         
         self._name = name
-        self._np_dsm = np_dsm
+        self._dsm = dsm
+        self._np_dsm = None
         self._tfw = tfw
         self._a_east = a_east
         self._a_north = a_north
         self._b_east = b_east
         self._b_north = b_north
+        self._ref_alti = ref_alti
         self._h = h
         self._sensor_size = sensor_size
         self._img_size = img_size
@@ -153,6 +165,7 @@ class DroneOri(object):
         self._final_overlap = final_overlap
         self._fixed_pitch = fixed_pitch
         
+        self.read_dsm()
         self.compute_prof_az()
         self.compute_fov()
         self.compute_footprint()
@@ -162,6 +175,10 @@ class DroneOri(object):
     @property
     def name(self):
         return self._name
+    
+    @property
+    def dsm(self):
+        return self._dsm
     
     @property
     def np_dsm(self):
@@ -186,6 +203,10 @@ class DroneOri(object):
     @property
     def b_north(self):
         return self._b_north
+    
+    @property
+    def ref_alti(self):
+        return self._ref_alti
     
     @property
     def h(self):
@@ -270,6 +291,13 @@ class DroneOri(object):
     @property
     def fixed_pitch(self):
         return self._fixed_pitch
+    
+    def read_dsm(self):
+        """
+        Reads the DSM data
+        """
+        
+        self._np_dsm = np.array(ImagePil.open(self._dsm))
     
     def compute_prof_az(self):
         """
@@ -967,10 +995,16 @@ class DroneOri(object):
                     'path_az':          degrees(self._prof_az),
                     'drone_e':          o['e_abv'],
                     'drone_n':          o['n_abv'],
-                    'drone_z':          o['z_abv'],
+                    'drone_z':          o['z_abv'] - self._ref_alti,
                     'drone_pitch':      degrees(o['pitch']),
                     'drone_fov_lat':    degrees(self._fov_lat),
                     'drone_fov_lon':    degrees(self._fov_lon),
-                    'drone_az':         o['drone_az']
+                    'drone_az':         o['drone_az'],
+                    'index_abv':        o['index_abv']
                 })
+        export = sorted(export, key=lambda e: e['index_abv'])
+        
+        for o in export:
+            o.pop('index_abv', None) # Remove index_abv, once export is sorted
+        pprint.pprint(export)
         return export
