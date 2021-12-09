@@ -22,7 +22,6 @@ class WayPoint:
         self.latitude = self.point.lat
         self.longitude = self.point.lon
         self.location = [self.point.lat,self.point.lon]
-
         self.altitude_absolue_sol = None
         self.altitude_relative_drone = None
         self.text=str(wp_text)
