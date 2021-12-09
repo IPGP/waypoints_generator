@@ -18,7 +18,9 @@ prof1.drone_orientations()
 prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
 prof1_export_ori = prof1.export_ori()
 
-# Example2: the pitch angle is estimated for each orientation
+# Example2: the pitch angle is estimated for each orientation and a reference
+# altitude is provided (i.e. the z coordinates of the drone will be relative to
+# this altitude)
 prof2 = DroneOri(
         name='prof2', dsm='rge_alti_1m_2.tif', tfw='rge_alti_1m_2.tfw',
         a_east=764122.5, a_north=6362635.5, b_east=764950.5, b_north=6362688.5,

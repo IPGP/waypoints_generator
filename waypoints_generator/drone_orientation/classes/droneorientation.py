@@ -1006,5 +1006,5 @@ class DroneOri(object):
         
         for o in export:
             o.pop('index_abv', None) # Remove index_abv, once export is sorted
-        pprint.pprint(export)
+        
         return export
