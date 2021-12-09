@@ -16,6 +16,7 @@ prof1 = DroneOri(
 prof1.dsm_profile()
 prof1.drone_orientations()
 prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
+prof1.draw_map(shaded_dsm='rge_alti_1m_1_shaded.tif')
 prof1_export_ori = prof1.export_ori()
 
 # Example2: the pitch angle is estimated for each orientation and a reference

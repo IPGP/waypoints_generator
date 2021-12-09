@@ -11,6 +11,7 @@ matplotlib.use('svg')
 import matplotlib.pyplot as plt
 from matplotlib import collections as mc
 import matplotlib.patches as mpatches
+import matplotlib.image as mpimg
 import pprint
 
 # Defines the successive positions (orientations) of the drone along one path,
@@ -311,16 +312,16 @@ class DroneOri(object):
         
         if delta_e > 0:
             if delta_n < 0:
-                self._prof_az = abs(atan(delta_e / delta_n))
-            elif delta_n > 0:
                 self._prof_az = abs(atan(delta_n / delta_e)) + pi/2
+            elif delta_n > 0:
+                self._prof_az = abs(atan(delta_e / delta_n))
             else:
                 self._prof_az = pi/2
         elif delta_e < 0:
             if delta_n > 0:
-                self._prof_az = abs(atan(delta_e / delta_n)) + pi
-            elif delta_n < 0:
                 self._prof_az = abs(atan(delta_n / delta_e)) + 3*pi/2
+            elif delta_n < 0:
+                self._prof_az = abs(atan(delta_e / delta_n)) + pi
             else:
                 self._prof_az = 3*pi/2
         else:
@@ -582,42 +583,43 @@ class DroneOri(object):
         e = self._profile[index]['e']
         n = self._profile[index]['n']
         
-        delta_index = self._h * cos(pitch) # Distance between the current
-                                           # position and the new position,
-                                           # projected along the profile axis
+        delta_index = abs(self._h * cos(pitch)) # Distance between the current
+                                                # position and the new position,
+                                                # projected along the profile
+                                                # axis
         
         # Difference in E and N between the two positions
         delta_e = abs(delta_index * sin(self._prof_az))
         delta_n = abs(delta_index * cos(self._prof_az))
         
         if drone_az: # The drone shoots in the same direction as the profile
-            index_abv = index - delta_index
+            index_abv = index - delta_index / self._x_spacing
             if self._prof_az >= 0 and self._prof_az < pi/2:
-                e_abv = e + delta_e
-                n_abv = n + delta_n
+                e_abv = e - delta_e
+                n_abv = n - delta_n
             elif self._prof_az >= pi/2 and self._prof_az < pi:
-                e_abv = e + delta_e
-                n_abv = n - delta_n
-            elif self._prof_az >= pi and self._prof_az < 3*pi/2:
-                e_abv = e - delta_e
-                n_abv = n - delta_n
-            elif self._prof_az >= 3*pi/2 and self._prof_az < 2*pi:
                 e_abv = e - delta_e
                 n_abv = n + delta_n
+            elif self._prof_az >= pi and self._prof_az < 3*pi/2:
+                e_abv = e + delta_e
+                n_abv = n + delta_n
+            elif self._prof_az >= 3*pi/2 and self._prof_az < 2*pi:
+                e_abv = e + delta_e
+                n_abv = n - delta_n
         else: # The drone shoots to the direction opposite to the profile
-            index_abv = index + delta_index
+            index_abv = index + delta_index / self._x_spacing
             if self._prof_az >= 0 and self._prof_az < pi/2:
-                e_abv = e - delta_e
-                n_abv = n - delta_n
+                e_abv = e + delta_e
+                n_abv = n + delta_n
             elif self._prof_az >= pi/2 and self._prof_az < pi:
-                e_abv = e - delta_e
-                n_abv = n + delta_n
-            elif self._prof_az >= pi and self._prof_az < 3*pi/2:
-                e_abv = e + delta_e
-                n_abv = n + delta_n
-            elif self._prof_az >= 3*pi/2 and self._prof_az < 2*pi:
                 e_abv = e + delta_e
                 n_abv = n - delta_n
+            elif self._prof_az >= pi and self._prof_az < 3*pi/2:
+                e_abv = e - delta_e
+                n_abv = n - delta_n
+            elif self._prof_az >= 3*pi/2 and self._prof_az < 2*pi:
+                e_abv = e - delta_e
+                n_abv = n + delta_n
         
         z = self._profile[index]['z']
         z_abv = z + abs(self._h * sin(pitch))
@@ -822,30 +824,55 @@ class DroneOri(object):
             self._drone_ori.update(new_drone_ori)
             drone_ori_by_keys = sorted(list(self._drone_ori.keys()))
         
-    def draw_orientations(self, disp_dsm_prof=True, disp_drone_pos=True,
-            disp_footp=False, disp_fov=True, disp_linereg=False,
+    def draw_orientations(self, disp_drone_pos=True, disp_footp=False,
+            disp_fov=True, disp_linereg=False, print_pitch=False,
             print_ovlp=False, print_linereg=False):
         """
         Draws the DSM profile with the drone orientations
+        
+        Input:
+            disp_drone_pos  [bool] wether or not to display the drone positions
+                                (default is True)
+            disp_footp      [bool] wether or not to display the image footprint
+                                (default is False)
+            disp_fov        [bool] wether or not to display the camera field of
+                                view (default is True)
+            disp_linereg    [bool] wether or not to display the linear
+                                regressions used to estimate the overlap ratio
+                                (default is False)
+            print_pitch     [bool] wether or not to print the pitch value of
+                                each orientation, in the terminal (default is
+                                False)
+            print_ovlp      [bool] wether or not to print the overlap ratio of
+                                each pair of orientations, in the terminal
+                                (default is False)
+            print_linereg   [bool] wether or not to print the linear regression
+                                information for each pair of orientation, in the
+                                terminal (default is False)
+        
+        Output:
+            an image is written in the working directory
         """
         
         plt.rcParams['savefig.dpi'] = 300
         plt.rcParams['figure.figsize'] = (16, 4)
         
+        GRID_LINESTYLE = (0, (20, 20))
+        GRID_LINEWIDTH = 0.2
+        
         fig, ax = plt.subplots()
         
         # DSM profile
-        if disp_dsm_prof:
-            prof_z = [v['z'] for v in self._profile]
-            prof_x = np.arange(0, len(prof_z))
-            ax.plot(prof_x, prof_z, linewidth=0.3)
+        prof_z = [v['z'] for v in self._profile]
+        prof_x = np.arange(0, len(prof_z)) * self._x_spacing
+        ax.plot(prof_x, prof_z, linewidth=0.3)
         
         # Extract info from the drone orientations
         drone_ori_by_keys = sorted(list(self._drone_ori.keys()))
         drone_x_abv = []
         drone_z_abv = []
         drone_color = []
-        pitch = []
+        pitch_dict = {}
         footp_lines = []
         fov_lines = []
         for i in drone_ori_by_keys:
@@ -854,10 +881,12 @@ class DroneOri(object):
             x_abv = o['index_abv']
             z_abv = o['z_abv']
             look_dir = o['drone_az']
-            p = o['pitch']
+            pitch = o['pitch']
             
             drone_x_abv.append(x_abv)
             drone_z_abv.append(z_abv)
+            
+            pitch_dict[i] = degrees(pitch)
             
             if look_dir:
                 drone_color.append('r')
@@ -876,8 +905,8 @@ class DroneOri(object):
             
             # Field of view (very similar to footprint, probably more realistic)
             SIGHT_LEN = 15
-            sight1 = p - self._fov_lon / 2
-            sight2 = p + self._fov_lon / 2
+            sight1 = pitch - self._fov_lon / 2
+            sight2 = pitch + self._fov_lon / 2
             if not look_dir:
                 sight1_x = x_abv - cos(sight1) * SIGHT_LEN
                 sight2_x = x_abv - cos(sight2) * SIGHT_LEN
@@ -926,6 +955,11 @@ class DroneOri(object):
             y = [i[1] for j in lines for i in j]
             ax.plot(x, y, '.', markersize=0.4, color='k')
         
+        # Print the pitch for each orientation, in the terminal
+        if print_pitch:
+            print('Pitch:\nindex: pitch')
+            pprint.pprint(pitch_dict)
+        
         # Print the overlap ratio of each pair, in the terminal
         if print_ovlp:
             print('Overlap ratios:\nindex: overlap')
@@ -936,30 +970,58 @@ class DroneOri(object):
             print('Linear regressions:\nindex: [a, b, r2_score]')
             pprint.pprint(self._ovlp_linreg_stats)
         
+        # Add the location of points A and B
+        locs = list(ax.get_xticks())
+        locs_for_lab = []
+        for l in locs:
+            locs_for_lab.append(round(l))
+        labels = ax.set_xticklabels(locs_for_lab)
+        labels += ['A', 'B']
+        locs += [
+                self._dsm_profile_margin * self._x_spacing,
+                (len(prof_z) - self._dsm_profile_margin) * self._x_spacing
+            ]
+        ax.set_xticklabels(labels)
+        ax.set_xticks(locs)
+        
+        # Grid
+        plt.grid(linestyle=GRID_LINESTYLE, linewidth=GRID_LINEWIDTH)
+        
         # Title
-        pitch = 'Pitch: '
+        pitch_txt = 'Pitch: '
         if self._fixed_pitch:
-            pitch += '{}° (fixed)'.format(self._fixed_pitch)
+            pitch_txt += '{}° (fixed)'.format(self._fixed_pitch)
         else:
-            pitch += '<free>'
+            pitch_txt += '<free>'
         title = ('{}\nFlight dist.: {} m, Overlap: {:.0f}%, {}, '
             'FoV: {:.0f}°, GSD: {:.1e} m'.format(
                 self._name,
                 self._h,
                 100*self._ovlp,
-                pitch,
+                pitch_txt,
                 degrees(self._fov_lon),
                 self._gsd
             ))
         title += '\n{} images'.format(len(self._drone_ori))
         plt.title(title)
         
+        # Axis titles
+        plt.xlabel('Distance along the profile (m)')
+        plt.ylabel('Z (m)')
+        
         # Legend
-        r_marker = mpatches.Circle([], radius=5, color='r', label='forwards')
-        g_marker = mpatches.Circle([], radius=5, color='g', label='backwards')
+        r_marker = mpatches.Patch(color='r', label='forwards')
+        g_marker = mpatches.Patch(color='g', label='backwards')
         ax.legend(handles=[r_marker, g_marker])
         
         plt.gca().set_aspect('equal')
+        
+        xmin = min(prof_x)
+        xmax = max(prof_x)
+        xmin -= 0.05 * (xmax - xmin)
+        xmax += 0.05 * (xmax - xmin)
+        ax.set(xlim=(xmin, xmax))
+        
         zmin = min(min(prof_z), min(drone_z_abv))
         zmax = max(max(prof_z), max(drone_z_abv))
         zmin -= 0.2 * (zmax - zmin)
@@ -969,6 +1031,137 @@ class DroneOri(object):
         plt.tight_layout()
         
         fig.savefig('{}_orientations.svg'.format(self._name))
+    
+    def draw_map(self, shaded_dsm=None, disp_dsm_prof=True, disp_drone_grd=True,
+            disp_drone_pos=True):
+        """
+        Draws the path with all orientations on a map
+        
+        Input:
+            shaded_dsm      [string] path to the shaded DSM .tif file; it must
+                                have the same projection and the same extent as
+                                the DSM (default is None, as it is optional)
+            disp_dsm_prof   [bool] wether or not to display the DSM profile
+                                (default is True)
+            disp_drone_grd  [bool] wether or not to display the position
+                                position "on the ground", i.e. more or less the
+                                projection of the optical center on the ground
+                                (default is True)
+            disp_drone_pos  [bool] wether or not to display the drone positions
+                                (default is True)
+        
+        Output:
+            an image is written in the working directory
+        """
+        
+        plt.rcParams['savefig.dpi'] = 300
+        plt.rcParams['figure.figsize'] = (8, 8)
+        
+        fig, ax = plt.subplots()
+        
+        # Extract info from the drone orientations
+        drone_ori_by_keys = sorted(list(self._drone_ori.keys()))
+        drone_e_grd = []
+        drone_n_grd = []
+        drone_e_abv = []
+        drone_n_abv = []
+        for i in drone_ori_by_keys:
+            o = self._drone_ori[i]
+            
+            e_grd = o['e_grd']
+            n_grd = o['n_grd']
+            e_abv = o['e_abv']
+            n_abv = o['n_abv']
+            
+            drone_e_grd.append(e_grd)
+            drone_n_grd.append(n_grd)
+            drone_e_abv.append(e_abv)
+            drone_n_abv.append(n_abv)
+        
+        colors = []
+        for i, v in enumerate(drone_e_grd):
+            # Alternate between 3 colors
+            if i%3 is 0:
+                c = 'g'
+            elif i%3 is 1:
+                c = 'r'
+            elif i%3 is 2:
+                c = 'b'
+            colors.append(c)
+        
+        # DSM profile
+        if disp_dsm_prof:
+            e = [v['e'] for v in self._profile]
+            n = [v['n'] for v in self._profile]
+            ax.plot(e, n, 'k', ms=0.1, alpha=0.3, zorder=1)
+            
+            a_e = self._a_east
+            b_e = self._b_east
+            a_n = self._a_north
+            b_n = self._b_north
+            ax.plot([a_e, b_e], [a_n, b_n], 'x', c='yellow', zorder=2)
+            ax.annotate('A', xy=[a_e, a_n])
+            ax.annotate('B', xy=[b_e, b_n])
+        
+        # Drone position "on the ground". It is more or less the projection of
+        # the optical center on the ground
+        if disp_drone_grd:
+            ax.scatter(drone_e_grd, drone_n_grd, s=3, c=colors, linewidths=0.1,
+                edgecolors='k', zorder=3)
+        
+        # Drone position, in planimetry
+        if disp_drone_pos:
+            ax.scatter(drone_e_abv, drone_n_abv, s=1.5, c=colors,
+                linewidths=0.1, edgecolors='k', zorder=4)
+        
+        # Shaded DSM
+        if shaded_dsm is not None:
+            dsm_img = mpimg.imread(shaded_dsm)
+            
+            e_min, e_max = ax.get_xlim()
+            n_min, n_max = ax.get_ylim()
+            
+            x_min = int(floor((e_min - self._top_left_e) / self._x_spacing))
+            x_max = int(ceil((e_max - self._top_left_e) / self._x_spacing))
+            y_min = int(floor((n_min - self._top_left_n) / self._y_spacing))
+            y_max = int(ceil((n_max - self._top_left_n) / self._y_spacing))
+            
+            subset_x = range(x_min, x_max+1)
+            subset_y = range(y_max, y_min+1)
+            
+            dsm_img = dsm_img[np.ix_(subset_y, subset_x)]
+            
+            ax.imshow(
+                dsm_img, 'gray', extent=(e_min, e_max, n_min, n_max),
+                zorder=0, alpha=0.8
+            )
+        
+        # Title
+        pitch_txt = 'Pitch: '
+        if self._fixed_pitch:
+            pitch_txt += '{}° (fixed)'.format(self._fixed_pitch)
+        else:
+            pitch_txt += '<free>'
+        title = ('{}\nFlight dist.: {} m, Overlap: {:.0f}%, {}, '
+            'FoV: {:.0f}°, GSD: {:.1e} m'.format(
+                self._name,
+                self._h,
+                100*self._ovlp,
+                pitch_txt,
+                degrees(self._fov_lon),
+                self._gsd
+            ))
+        title += '\n{} images'.format(len(self._drone_ori))
+        plt.title(title)
+        
+        # Axis titles
+        plt.xlabel('Easting (m)')
+        plt.ylabel('Northing (m)')
+        
+        plt.gca().set_aspect('equal')
+        plt.tight_layout()
+        
+        fig.savefig('{}_map.svg'.format(self._name))
     
     def export_ori(self):
         """
