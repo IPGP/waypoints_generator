@@ -185,4 +185,4 @@ best_angle_nb_turns.html
 profil_waypoints.html
 test.kml
 .gitignore
-prof1_orientations.svg
+prof*_orientations.svg

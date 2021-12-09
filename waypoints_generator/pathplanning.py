@@ -294,7 +294,7 @@ def main():
     longitudinal_footprint = 100
     elevation = 100
 
-    Path_generator = PathPlanning(points=points,  bearing=160, lateral_footprint=lateral_footprint,
+    Path_generator = PathPlanning(points=points,  bearing=90, lateral_footprint=lateral_footprint,
                                   longitudinal_footprint=longitudinal_footprint, start_point=start_point, percent_recouvrement_lat=0.6, percent_recouvrement_lon=0.80)
 
     Path_generator.extra_point.append(start_point)
@@ -307,13 +307,14 @@ def main():
 
     # conversion des coordonnes https://pyproj4.github.io/pyproj/stable/gotchas.html#upgrading-to-pyproj-2-from-pyproj-1
     epsg_mnt = "epsg:2154"
-    coordonates_transformer = Transformer.from_crs("WGS84", epsg_mnt)
-    reverse_coordonates_transformer = Transformer.from_crs(epsg_mnt, "WGS84")
+    epsg_in = "epsg:4126"
+    coordonates_transformer = Transformer.from_crs(epsg_in, epsg_mnt)
+    reverse_coordonates_transformer = Transformer.from_crs(epsg_mnt, epsg_in)
     final_waypoint_dict = []
     # load MNT
     np_dsm = np.array(ImagePil.open('waypoints_generator/drone_orientation/rge_alti_1m_2.tif'))
     tfw='waypoints_generator/drone_orientation/rge_alti_1m_2.tfw'
-
+    i = 0
     for paire in Path_generator.export_to_paired_wp():
         
         # test pour ne garder que les paires de points
@@ -325,21 +326,23 @@ def main():
             print(F'Coordonnées converties => DroneOri b \t{b_north}\t{b_east}\n')
             #print(b_east,b_north)
             prof1 = DroneOri(
-            name='prof1', np_dsm=np_dsm, tfw=tfw,
+            name='prof_'+str(i), np_dsm=np_dsm, tfw=tfw,
             a_east=a_east, a_north=a_north, b_east=b_east, b_north=b_north,
             h=elevation, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=0.1,
-            fixed_pitch=75
+            #fixed_pitch=75
             )
             prof1.dsm_profile()
             prof1.drone_orientations()
             prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
             final_waypoint_dict+=prof1.export_ori()
+            i+=1
+            
 
     ################### kml from profils ##########################
-    wp_extras=dict2djikml(final_waypoint_dict,'test.kml',reverse_coordonates_transformer)
+    wp_extras=dict2djikml(final_waypoint_dict,'test.kml',reverse_coordonates_transformer,speed = 15)
     tmp_wp=wp_extras[0]
     print('######################@')
-    print('distances entre chaque WP')
+    print('distances entre chaque WP consécutifs')
     for wp in wp_extras:
         print(F'{tmp_wp.distanceTo(wp)}')
         tmp_wp=wp
