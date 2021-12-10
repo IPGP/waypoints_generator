@@ -31,6 +31,7 @@ prof2 = DroneOri(
 prof2.dsm_profile()
 prof2.drone_orientations()
 prof2.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
+prof2.draw_map(shaded_dsm='rge_alti_1m_2_shaded.tif')
 prof2_export_ori = prof2.export_ori()
 
 # Test unitaire fonction find_orientation

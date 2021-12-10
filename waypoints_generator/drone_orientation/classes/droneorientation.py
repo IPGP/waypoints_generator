@@ -66,6 +66,7 @@ class DroneOri(object):
         drone_orientations  Estimates the drone orientation at each shot, from
                                 the profile extracted from the DSM
         draw_orientations   Draws the DSM profile with the drone orientations
+        draw_map            Draws the path with all orientations on a map
         export_ori          Exports all orientation information
     """
     
@@ -1030,10 +1031,11 @@ class DroneOri(object):
         
         plt.tight_layout()
         
-        fig.savefig('{}_orientations.svg'.format(self._name))
+        fig.savefig('{}_orientations.svg'.format(self._name),
+            bbox_inches='tight')
     
-    def draw_map(self, shaded_dsm=None, disp_dsm_prof=True, disp_drone_grd=True,
-            disp_drone_pos=True):
+    def draw_map(self, shaded_dsm=None, no_subset=True, disp_dsm_prof=True,
+            disp_drone_grd=True, disp_drone_pos=True):
         """
         Draws the path with all orientations on a map
         
@@ -1041,6 +1043,8 @@ class DroneOri(object):
             shaded_dsm      [string] path to the shaded DSM .tif file; it must
                                 have the same projection and the same extent as
                                 the DSM (default is None, as it is optional)
+            no_subset       [bool] wether or not to adapt the range of the
+                                shaded DSM to the plotted path (default is True)
             disp_dsm_prof   [bool] wether or not to display the DSM profile
                                 (default is True)
             disp_drone_grd  [bool] wether or not to display the position
@@ -1058,6 +1062,9 @@ class DroneOri(object):
         plt.rcParams['figure.figsize'] = (8, 8)
         
         fig, ax = plt.subplots()
+        
+        handles = []
+        labels = []
         
         # Extract info from the drone orientations
         drone_ori_by_keys = sorted(list(self._drone_ori.keys()))
@@ -1082,9 +1089,9 @@ class DroneOri(object):
         for i, v in enumerate(drone_e_grd):
             # Alternate between 3 colors
             if i%3 is 0:
-                c = 'g'
-            elif i%3 is 1:
                 c = 'r'
+            elif i%3 is 1:
+                c = 'g'
             elif i%3 is 2:
                 c = 'b'
             colors.append(c)
@@ -1093,7 +1100,7 @@ class DroneOri(object):
         if disp_dsm_prof:
             e = [v['e'] for v in self._profile]
             n = [v['n'] for v in self._profile]
-            ax.plot(e, n, 'k', ms=0.1, alpha=0.3, zorder=1)
+            ax.plot(e, n, alpha=0.3, zorder=1)
             
             a_e = self._a_east
             b_e = self._b_east
@@ -1106,34 +1113,44 @@ class DroneOri(object):
         # Drone position "on the ground". It is more or less the projection of
         # the optical center on the ground
         if disp_drone_grd:
-            ax.scatter(drone_e_grd, drone_n_grd, s=3, c=colors, linewidths=0.1,
-                edgecolors='k', zorder=3)
+            drone_grd = ax.scatter(drone_e_grd, drone_n_grd, s=2, c=colors,
+                linewidths=0.1, edgecolors='k', zorder=3)
+            handles.append(drone_grd)
+            labels.append('target')
         
         # Drone position, in planimetry
         if disp_drone_pos:
-            ax.scatter(drone_e_abv, drone_n_abv, s=1.5, c=colors,
+            drone_pos = ax.scatter(drone_e_abv, drone_n_abv, s=1, c=colors,
                 linewidths=0.1, edgecolors='k', zorder=4)
+            handles.append(drone_pos)
+            labels.append('drone')
         
         # Shaded DSM
         if shaded_dsm is not None:
             dsm_img = mpimg.imread(shaded_dsm)
             
-            e_min, e_max = ax.get_xlim()
-            n_min, n_max = ax.get_ylim()
-            
-            x_min = int(floor((e_min - self._top_left_e) / self._x_spacing))
-            x_max = int(ceil((e_max - self._top_left_e) / self._x_spacing))
-            y_min = int(floor((n_min - self._top_left_n) / self._y_spacing))
-            y_max = int(ceil((n_max - self._top_left_n) / self._y_spacing))
-            
-            subset_x = range(x_min, x_max+1)
-            subset_y = range(y_max, y_min+1)
-            
-            dsm_img = dsm_img[np.ix_(subset_y, subset_x)]
+            if no_subset:
+                e_min = self._top_left_e
+                e_max = self._top_left_e + self._x_spacing * dsm_img.shape[1]
+                n_min = self._top_left_n + self._y_spacing * dsm_img.shape[0]
+                n_max = self._top_left_n
+            else:
+                e_min, e_max = ax.get_xlim()
+                n_min, n_max = ax.get_ylim()
+                
+                x_min = int(floor((e_min - self._top_left_e) / self._x_spacing))
+                x_max = int(ceil((e_max - self._top_left_e) / self._x_spacing))
+                y_min = int(floor((n_min - self._top_left_n) / self._y_spacing))
+                y_max = int(ceil((n_max - self._top_left_n) / self._y_spacing))
+                
+                subset_x = range(x_min, x_max+1)
+                subset_y = range(y_max, y_min+1)
+                
+                dsm_img = dsm_img[np.ix_(subset_y, subset_x)]
             
             ax.imshow(
                 dsm_img, 'gray', extent=(e_min, e_max, n_min, n_max),
-                zorder=0, alpha=0.8
+                zorder=0, alpha=0.7
             )
         
         # Title
@@ -1158,10 +1175,16 @@ class DroneOri(object):
         plt.xlabel('Easting (m)')
         plt.ylabel('Northing (m)')
         
+        plt.yticks(rotation=90)
+        
+        # Legend
+        if handles:
+            ax.legend(handles, labels)
+        
         plt.gca().set_aspect('equal')
         plt.tight_layout()
         
-        fig.savefig('{}_map.svg'.format(self._name))
+        fig.savefig('{}_map.svg'.format(self._name), bbox_inches='tight')
     
     def export_ori(self):
         """
