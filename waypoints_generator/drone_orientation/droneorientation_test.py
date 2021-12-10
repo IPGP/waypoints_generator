@@ -5,13 +5,17 @@ from classes.droneorientation import DroneOri
 
 # This script is to test droneorientation.py
 # Test data are RGE ALTI data, from IGN (https://geoservices.ign.fr/rgealti)
+# (be careful: those are DTMs, not DSMs, so trees do not appear, for example)
 
-# Example1: fixed pitch, with the drone shooting backwards
+# Example1: fixed pitch, with the drone shooting backwards (fixed_pitch
+# positive)
+# The calculated z coordinates of the drone relate to the altitude at the
+# takeoff point, this altitude being taken from the DSM
 prof1 = DroneOri(
         name='prof1', dsm='rge_alti_1m_1.tif', tfw='rge_alti_1m_1.tfw',
         a_east=365649.5, a_north=6397299.5, b_east=366205.5, b_north=6396986.5,
         h=20, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=0.1,
-        fixed_pitch=75
+        fixed_pitch=75, takeoff_pt=(366151.5, 6397132.5)
     )
 prof1.dsm_profile()
 prof1.drone_orientations()
@@ -19,9 +23,9 @@ prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
 prof1.draw_map(shaded_dsm='rge_alti_1m_1_shaded.tif')
 prof1_export_ori = prof1.export_ori()
 
-# Example2: the pitch angle is estimated for each orientation and a reference
-# altitude is provided (i.e. the z coordinates of the drone will be relative to
-# this altitude)
+# Example2: the pitch angle is free, i.e. it is estimated for each orientation
+# A reference altitude is provided, so the z coordinates of the drone relate to
+# that altitude (cannot be used in conjunction with takeoff_pt)
 prof2 = DroneOri(
         name='prof2', dsm='rge_alti_1m_2.tif', tfw='rge_alti_1m_2.tfw',
         a_east=764122.5, a_north=6362635.5, b_east=764950.5, b_north=6362688.5,

@@ -71,18 +71,19 @@ class DroneOri(object):
     """
     
     def __init__(self, name, dsm, tfw, a_east, a_north, b_east, b_north,
-            h, sensor_size, img_size, focal, ovlp, ref_alti=0, fov_lon=None,
-            fov_lat=None, footprint=None, profile=[], prof_az=None,
-            x_spacing=None, y_spacing=None, top_left_e=None, top_left_n=None,
-            dsm_profile_margin=None, drone_ori={}, ovlp_linreg_x={},
-            ovlp_linreg_z={}, ovlp_linreg_stats={}, final_overlap={},
-            fixed_pitch=None):
+            h, sensor_size, img_size, focal, ovlp, ref_alti=0, takeoff_pt=None,
+            fov_lon=None, fov_lat=None, footprint=None, profile=[],
+            prof_az=None, x_spacing=None, y_spacing=None, top_left_e=None,
+            top_left_n=None, dsm_profile_margin=None, drone_ori={},
+            ovlp_linreg_x={}, ovlp_linreg_z={}, ovlp_linreg_stats={},
+            final_overlap={}, fixed_pitch=None):
         """
         Variables:
             name                [string] name of the drone path
-            dsm                 [string] path to the DSM .tif file; the unit
-                                    must be the meter, for each dimension (i.e.
-                                    not in the WGS84 reference system)
+            dsm                 [string] path to the DSM .tif file;
+                                    the unit must be the meter, for each
+                                    dimension (i.e. not in the WGS84 reference
+                                    system)
             tfw                 [string] path to the DSM .tfw file
             a_east, a_north     [floats] Easting and Northing coordinates of the
                                     first point of the profile in the DSM (in m)
@@ -90,11 +91,17 @@ class DroneOri(object):
                                     last point of the profile in the DSM (in m)
             ref_alti            [float] reference altitude (in m, default is 0),
                                     which will be subtracted to the z coordinate
-                                    of the drone; it can be either 0, to keep
-                                    the altitude value as z, or another altitude
-                                    (e.g. the drone take off altitude), to
-                                    ensure that z is the height with respect to
-                                    that altitude
+                                    of the drone;
+                                    it can be either 0, to keep the altitude
+                                    value as z, or another altitude (e.g. the
+                                    drone take off altitude), to ensure that z
+                                    is the height with respect to that altitude;
+                                    if used along with takeoff_pt, an error will
+                                    be raised
+            takeoff_pt         [tuple] Easting and Norting coordinates (e, n)
+                                    of the drone takeoff point;
+                                    if used along with ref_alti, an error will
+                                    be raised.
             h                   [float] flight distance, i.e. distance between
                                     the drone and the ground (in m)
             sensor_size         [tuple] size of the sensor (L,l) (in mm)
@@ -113,8 +120,8 @@ class DroneOri(object):
                                     top-left corner of the DSM top-left pixel
                                     (in m)
             dsm_profile_margin  [int] margin to cover both endpoints of the
-                                    profile (w/o units)
-                                    = ceil(footprint/2/x_spacing) + 1
+                                    profile (w/o units);
+                                    equals to: ceil(footprint/2/x_spacing) + 1;
                                     (i.e. nb of extra values that were added to
                                     each end of self._profile, +1 by safety)
             drone_ori           [list] drone orientation (see the add_ori()
@@ -127,10 +134,10 @@ class DroneOri(object):
                                     regressions found in estim_ovlp()
             final_overlap       [dict] overlap ratios for each pair of
                                     orientations
-            fixed_pitch         [float] gimbal pitch value (in deg)
-                                    1) If given, pitch will be fixed instead of
-                                    being estimated for each orientation.
-                                    2) Pitch should always be negative (-90 <=
+            fixed_pitch         [float] gimbal pitch value (in deg);
+                                    1) if given, pitch will be fixed instead of
+                                    being estimated for each orientation;
+                                    2) pitch should always be negative (-90 <=
                                     fixed_pitch < 0). Here, by convention, a
                                     positive pitch means that we want the drone
                                     to shoot backwards, instead of forwards.
@@ -145,6 +152,7 @@ class DroneOri(object):
         self._b_east = b_east
         self._b_north = b_north
         self._ref_alti = ref_alti
+        self._takeoff_pt = takeoff_pt
         self._h = h
         self._sensor_size = sensor_size
         self._img_size = img_size
@@ -167,12 +175,18 @@ class DroneOri(object):
         self._final_overlap = final_overlap
         self._fixed_pitch = fixed_pitch
         
+        if self._ref_alti is not 0 and self._takeoff_pt:
+            sys.exit("Error: ref_alti and takeoff_pt are incompatible options. "
+                "Please use only one at a time.")
+        
         self.read_dsm()
         self.compute_prof_az()
         self.compute_fov()
         self.compute_footprint()
         self.compute_gsd()
         self.read_tfw()
+        if self._takeoff_pt:
+            self.ref_alti_from_takeoff_pt()
     
     @property
     def name(self):
@@ -209,6 +223,10 @@ class DroneOri(object):
     @property
     def ref_alti(self):
         return self._ref_alti
+    
+    @property
+    def takeoff_pt(self):
+        return self._takeoff_pt
     
     @property
     def h(self):
@@ -378,6 +396,15 @@ class DroneOri(object):
             if abs(self._x_spacing) != abs(self._y_spacing):
                 print("Warning: abs(x_spacing) != abs(y_spacing).")
     
+    def ref_alti_from_takeoff_pt(self):
+        """
+        Extract ref_alti from the DSM at the coordinates of the takeoff point
+        """
+        
+        row = round((self._takeoff_pt[1] - self._top_left_n) / self._y_spacing)
+        col = round((self._takeoff_pt[0] - self._top_left_e) / self._x_spacing)
+        self._ref_alti = self._np_dsm[row, col]
+    
     def dsm_profile(self):
         """
         Makes a profile in the DSM
@@ -473,8 +500,8 @@ class DroneOri(object):
             index           [int] same as the input
             pitch           [float] gimbal pitch for the current position (in
                                 rad)
-            drone_az        [bool] drone azimuth for the current position
-                                True  = same direction as the profile
+            drone_az        [bool] drone azimuth for the current position;
+                                True  = same direction as the profile;
                                 False = direction opposite to the profile
                                 direction
             footp_i_start   [int] index of the beginning of the footprint
@@ -555,8 +582,8 @@ class DroneOri(object):
             index           [int] index of the current position in self._profile
             pitch           [float] gimbal pitch for the current position (in
                                 rad)
-            drone_az        [bool] drone azimuth for the current position
-                                True  = same direction as the profile
+            drone_az        [bool] drone azimuth for the current position;
+                                True  = same direction as the profile;
                                 False = direction opposite to the profile
                                 direction
             footp_i_start   [int] index of the beginning of the footprint
@@ -1034,17 +1061,19 @@ class DroneOri(object):
         fig.savefig('{}_orientations.svg'.format(self._name),
             bbox_inches='tight')
     
-    def draw_map(self, shaded_dsm=None, no_subset=True, disp_dsm_prof=True,
-            disp_drone_grd=True, disp_drone_pos=True):
+    def draw_map(self, shaded_dsm=None, make_subset=False, disp_dsm_prof=True,
+            disp_drone_grd=True, disp_drone_pos=True, disp_takeoff_pt=True):
         """
         Draws the path with all orientations on a map
         
         Input:
-            shaded_dsm      [string] path to the shaded DSM .tif file; it must
-                                have the same projection and the same extent as
-                                the DSM (default is None, as it is optional)
-            no_subset       [bool] wether or not to adapt the range of the
-                                shaded DSM to the plotted path (default is True)
+            shaded_dsm      [string] path to the shaded DSM .tif file;
+                                it must have the same projection and the same
+                                extent as the DSM (default is None, as it is
+                                optional)
+            make_subset     [bool] wether or not to adapt the range of the
+                                shaded DSM to the plotted path (default is
+                                False)
             disp_dsm_prof   [bool] wether or not to display the DSM profile
                                 (default is True)
             disp_drone_grd  [bool] wether or not to display the position
@@ -1053,6 +1082,8 @@ class DroneOri(object):
                                 (default is True)
             disp_drone_pos  [bool] wether or not to display the drone positions
                                 (default is True)
+            disp_takeoff_pt [bool] wether or not to display the drone takeoff
+                                position, whenever it exists (default is True)
         
         Output:
             an image is written in the working directory
@@ -1106,9 +1137,17 @@ class DroneOri(object):
             b_e = self._b_east
             a_n = self._a_north
             b_n = self._b_north
-            ax.plot([a_e, b_e], [a_n, b_n], 'x', c='yellow', zorder=2)
+            c = 'yellow' if shaded_dsm is not None else 'k'
+            ax.plot([a_e, b_e], [a_n, b_n], 'x', c=c, zorder=2)
             ax.annotate('A', xy=[a_e, a_n])
             ax.annotate('B', xy=[b_e, b_n])
+        
+        # Drone takeoff position
+        if disp_takeoff_pt and self._takeoff_pt:
+            takeoff = ax.scatter(self._takeoff_pt[0], self._takeoff_pt[1],
+                s=150, c='yellow', marker='*', edgecolors='k', linewidths=0.2)
+            handles.append(takeoff)
+            labels.append('takeoff position')
         
         # Drone position "on the ground". It is more or less the projection of
         # the optical center on the ground
@@ -1129,12 +1168,7 @@ class DroneOri(object):
         if shaded_dsm is not None:
             dsm_img = mpimg.imread(shaded_dsm)
             
-            if no_subset:
-                e_min = self._top_left_e
-                e_max = self._top_left_e + self._x_spacing * dsm_img.shape[1]
-                n_min = self._top_left_n + self._y_spacing * dsm_img.shape[0]
-                n_max = self._top_left_n
-            else:
+            if make_subset:
                 e_min, e_max = ax.get_xlim()
                 n_min, n_max = ax.get_ylim()
                 
@@ -1147,6 +1181,11 @@ class DroneOri(object):
                 subset_y = range(y_max, y_min+1)
                 
                 dsm_img = dsm_img[np.ix_(subset_y, subset_x)]
+            else:
+                e_min = self._top_left_e
+                e_max = self._top_left_e + self._x_spacing * dsm_img.shape[1]
+                n_min = self._top_left_n + self._y_spacing * dsm_img.shape[0]
+                n_max = self._top_left_n
             
             ax.imshow(
                 dsm_img, 'gray', extent=(e_min, e_max, n_min, n_max),
@@ -1198,9 +1237,10 @@ class DroneOri(object):
             - drone_pitch:          drone gimbal pitch angle (in deg)
             - drone_fov_lat, _lon:  camera field of view in the longitudinal and
                                         lateral directions (in deg)
-            - drone_az:             drone azimuth; True  = same direction as the
-                                        profile; False = direction opposite to
-                                        the profile direction
+            - drone_az:             drone azimuth;
+                                        True  = same direction as the profile;
+                                        False = direction opposite to the
+                                        profile direction
         """
         
         export = []
