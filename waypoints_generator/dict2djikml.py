@@ -18,7 +18,7 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='h
 
   <kml xmlns="http://www.opengis.net/kml/2.2">
     <Document xmlns="">
-      <name>chambon_small</name>
+      <name>Path</name>
       <open>1</open>
       <ExtendedData xmlns:mis="www.dji.com">
         <mis:type>Waypoint</mis:type>
