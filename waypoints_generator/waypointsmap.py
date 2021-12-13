@@ -20,6 +20,9 @@ class WaypointMap:
         self.start_icon_path =r"waypoints_generator/icons/star_yellow.png"
         self.WP_icon_path_black_path=r"waypoints_generator/icons/circle_black.png"
         self.WP_icon_path_red_path=r"waypoints_generator/icons/circle_red.png"
+        self.WP_icon_path_dot_circle=r"waypoints_generator/icons/dot-circle-o.png"
+        self.WP_icon_path_blue_crosshair=r"waypoints_generator/icons/crosshairs.png"
+
         self.startpoint=startpoint
         self.waypoint_nb = 0
         self.the_map = create_folium_map(
@@ -122,8 +125,10 @@ class WaypointMap:
 
     def add_extra(self, waypoint, text=None):
         """ add extra points to the map. for debug purpose"""
-        
-        icon_red = folium.features.CustomIcon(icon_image=self.WP_icon_path_red_path, icon_size=(15, 15))
+
+        #from IPython import embed; embed()
+
+        icon_red = folium.features.CustomIcon(icon_image=self.WP_icon_path_dot_circle, icon_size=(15, 15))
 
         folium.Marker(location=[waypoint.lat,waypoint.lon], 
         tooltip=text+"<br>"+str(waypoint.lat)+"<br>"+str(waypoint.lon), icon=icon_red).add_to(self.the_map)

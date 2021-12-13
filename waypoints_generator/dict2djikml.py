@@ -18,7 +18,7 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='h
 
   <kml xmlns="http://www.opengis.net/kml/2.2">
     <Document xmlns="">
-      <name>chambon_small</name>
+      <name>Path</name>
       <open>1</open>
       <ExtendedData xmlns:mis="www.dji.com">
         <mis:type>Waypoint</mis:type>
@@ -130,7 +130,7 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='h
   if '.' not in speed:
       speed = speed+'.0'
   waypoint_nb=0
-  print(dic)
+  #print(dic)
   for waypoint in dic :
       #print(waypoint)
       # 'path_name': 'prof1',
@@ -164,7 +164,7 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='h
       if '.' not in gimbal:
           gimbal = gimbal+'.0'
 
-      print(F'{name}\t{lat}\t{lon}\t{heading}\t{gimbal}')
+      #print(F'{name}\t{lat}\t{lon}\t{heading}\t{gimbal}')
 
       XML_string += waypoint_start.substitute(
           turnmode=turnmode, waypoint_number=waypoint_nb, speed=speed, heading=heading, gimbal=gimbal)

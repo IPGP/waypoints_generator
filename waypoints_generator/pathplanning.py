@@ -278,6 +278,8 @@ def main():
     Sapine
     """
     start_point = LatLon(44.350331,3.800653)
+    start_point = LatLon(44.35288061211964, 3.812069520331229)
+    
     start_point.text = 'Start'
 
 
@@ -293,15 +295,17 @@ def main():
     lateral_footprint = 200
     longitudinal_footprint = 100
     elevation = 100
-
+    recouvrement_lat=0.6
+    recouvrement_lon=0.3
+    
     Path_generator = PathPlanning(points=points,  bearing=90, lateral_footprint=lateral_footprint,
-                                  longitudinal_footprint=longitudinal_footprint, start_point=start_point, percent_recouvrement_lat=0.6, percent_recouvrement_lon=0.80)
+                                  longitudinal_footprint=longitudinal_footprint, start_point=start_point, percent_recouvrement_lat=recouvrement_lat, percent_recouvrement_lon=recouvrement_lon)
 
     Path_generator.extra_point.append(start_point)
     Path_generator.generate_path_normal_plus()
 
-    for paire in Path_generator.export_to_paired_wp():
-        print(paire)
+#    for paire in Path_generator.export_to_paired_wp():
+#        print(paire)
 
     ################### Profils ##########################
 
@@ -312,8 +316,9 @@ def main():
     reverse_coordonates_transformer = Transformer.from_crs(epsg_mnt, epsg_in)
     final_waypoint_dict = []
     # load MNT
-    np_dsm = np.array(ImagePil.open('waypoints_generator/drone_orientation/rge_alti_1m_2.tif'))
-    tfw='waypoints_generator/drone_orientation/rge_alti_1m_2.tfw'
+    dsm = 'waypoints_generator/drone_orientation/rge_alti_1m_2.tif'
+    tfw= 'waypoints_generator/drone_orientation/rge_alti_1m_2.tfw'
+    # i sert à nommer les numéros de profils
     i = 0
     for paire in Path_generator.export_to_paired_wp():
         
@@ -322,32 +327,36 @@ def main():
             #print(paire)
             a_east,a_north = coordonates_transformer.transform(paire[0][0],paire[0][1])
             b_east, b_north = coordonates_transformer.transform(paire[1][0],paire[1][1])
-            print(F'\nCoordonnées converties => DroneOri a \t{a_north}\t{a_east}')
-            print(F'Coordonnées converties => DroneOri b \t{b_north}\t{b_east}\n')
+            #print(F'\nCoordonnées converties => DroneOri a \t{a_north}\t{a_east}')
+            #print(F'Coordonnées converties => DroneOri b \t{b_north}\t{b_east}\n')
             #print(b_east,b_north)
+            print('prof_'+str(i))
             prof1 = DroneOri(
-            name='prof_'+str(i), np_dsm=np_dsm, tfw=tfw,
+            name='prof_'+str(i), dsm=dsm, tfw=tfw,
             a_east=a_east, a_north=a_north, b_east=b_east, b_north=b_north,
-            h=elevation, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=0.1,
+            h=elevation, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=recouvrement_lon,
+            takeoff_pt=coordonates_transformer.transform(start_point.lat, start_point.lon),
             #fixed_pitch=75
             )
             prof1.dsm_profile()
             prof1.drone_orientations()
             prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
             final_waypoint_dict+=prof1.export_ori()
+            prof1.draw_map(shaded_dsm='waypoints_generator/drone_orientation/rge_alti_1m_2_shaded.tif')
+
             i+=1
             
 
     ################### kml from profils ##########################
-    wp_extras=dict2djikml(final_waypoint_dict,'test.kml',reverse_coordonates_transformer,speed = 15)
-    tmp_wp=wp_extras[0]
-    print('######################@')
-    print('distances entre chaque WP consécutifs')
-    for wp in wp_extras:
-        print(F'{tmp_wp.distanceTo(wp)}')
-        tmp_wp=wp
-    print('######################@')
-    ################### html map ##########################
+    wp_extras=dict2djikml(final_waypoint_dict,'0_sapine.kml',reverse_coordonates_transformer,speed = 15)
+    # tmp_wp=wp_extras[0]
+    # print('######################@')
+    # print('distances entre chaque WP consécutifs')
+    # for wp in wp_extras:
+    #     print(F'{tmp_wp.distanceTo(wp)}')
+    #     tmp_wp=wp
+    # print('######################@')
+    # ################### html map ##########################
     for wp in wp_extras:
         Path_generator.extra_point.append(wp)
 
