@@ -72,11 +72,11 @@ class DroneOri(object):
     
     def __init__(self, name, dsm, tfw, a_east, a_north, b_east, b_north,
             h, sensor_size, img_size, focal, ovlp, ref_alti=0, takeoff_pt=None,
-            fov_lon=None, fov_lat=None, footprint=None, profile=[],
+            fov_lon=None, fov_lat=None, footprint=None, profile=None,
             prof_az=None, x_spacing=None, y_spacing=None, top_left_e=None,
-            top_left_n=None, dsm_profile_margin=None, drone_ori={},
-            ovlp_linreg_x={}, ovlp_linreg_z={}, ovlp_linreg_stats={},
-            final_overlap={}, fixed_pitch=None):
+            top_left_n=None, dsm_profile_margin=None, drone_ori=None,
+            ovlp_linreg_x=None, ovlp_linreg_z=None, ovlp_linreg_stats=None,
+            final_overlap=None, fixed_pitch=None):
         """
         Variables:
             name                [string] name of the drone path
@@ -175,9 +175,14 @@ class DroneOri(object):
         self._final_overlap = final_overlap
         self._fixed_pitch = fixed_pitch
         
-        if self._ref_alti is not 0 and self._takeoff_pt:
-            sys.exit("Error: ref_alti and takeoff_pt are incompatible options. "
-                "Please use only one at a time.")
+        if self._ref_alti is not 0:
+            if self._takeoff_pt:
+                sys.exit("Error: ref_alti and takeoff_pt are incompatible "
+                    "option. Please use only one at a time.")
+            else:
+                print("Be careful when providing ref_alti: its vertical "
+                    "reference must be the same as that of the DSM (e.g. the "
+                    "ellipsoid or the geoid)")
         
         self.read_dsm()
         self.compute_prof_az()
@@ -403,6 +408,8 @@ class DroneOri(object):
         
         row = round((self._takeoff_pt[1] - self._top_left_n) / self._y_spacing)
         col = round((self._takeoff_pt[0] - self._top_left_e) / self._x_spacing)
+        if row < 0 or col < 0:
+            sys.exit("Error: takeoff_pt is outside the DSM boundaries")
         self._ref_alti = self._np_dsm[row, col]
     
     def dsm_profile(self):
@@ -773,6 +780,10 @@ class DroneOri(object):
         """
         
         self._drone_ori = {}
+        self._ovlp_linreg_x = {}
+        self._ovlp_linreg_z = {}
+        self._ovlp_linreg_stats = {}
+        self._final_overlap = {}
         
         # Initialization with the first and last points of the profile
         # Start of profile
@@ -1004,12 +1015,10 @@ class DroneOri(object):
         for l in locs:
             locs_for_lab.append(round(l))
         labels = ax.set_xticklabels(locs_for_lab)
-        labels += ['A', 'B']
-        locs += [
-                self._dsm_profile_margin * self._x_spacing,
-                (len(prof_z) - self._dsm_profile_margin) * self._x_spacing
-            ]
-        ax.set_xticklabels(labels)
+        x_a = self._dsm_profile_margin * self._x_spacing
+        x_b = (len(prof_z) - self._dsm_profile_margin) * self._x_spacing
+        locs += [x_a, x_b]
+        ax.tick_params(axis='x', direction='inout')
         ax.set_xticks(locs)
         
         # Grid
@@ -1055,6 +1064,9 @@ class DroneOri(object):
         zmin -= 0.2 * (zmax - zmin)
         zmax += 0.2 * (zmax - zmin)
         ax.set(ylim=(zmin, zmax))
+        
+        ax.text(x_a, zmin+0.02*(zmax-zmin), 'A', ha='center')
+        ax.text(x_b, zmin+0.02*(zmax-zmin), 'B', ha='center')
         
         plt.tight_layout()
         
