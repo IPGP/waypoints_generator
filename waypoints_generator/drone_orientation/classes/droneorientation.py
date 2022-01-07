@@ -1014,6 +1014,8 @@ class DroneOri(object):
         locs_for_lab = []
         for l in locs:
             locs_for_lab.append(round(l))
+            
+        ax.set_xticks(ax.get_xticks())  # just get and reset to prevent annoying bug
         labels = ax.set_xticklabels(locs_for_lab)
         x_a = self._dsm_profile_margin * self._x_spacing
         x_b = (len(prof_z) - self._dsm_profile_margin) * self._x_spacing

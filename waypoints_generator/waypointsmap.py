@@ -17,11 +17,11 @@ class WaypointMap:
     "WaypointMap class to plot waypoints of a mission in a nice map"
 
     def __init__(self,startpoint=None):
-        self.start_icon_path =r"waypoints_generator/icons/star_yellow.png"
-        self.WP_icon_path_black_path=r"waypoints_generator/icons/circle_black.png"
-        self.WP_icon_path_red_path=r"waypoints_generator/icons/circle_red.png"
-        self.WP_icon_path_dot_circle=r"waypoints_generator/icons/dot-circle-o.png"
-        self.WP_icon_path_blue_crosshair=r"waypoints_generator/icons/crosshairs.png"
+        self.start_icon_path =r"icons/star_yellow.png"
+        self.WP_icon_path_black_path=r"icons/circle_black.png"
+        self.WP_icon_path_red_path=r"icons/circle_red.png"
+        self.WP_icon_path_dot_circle=r"icons/dot-circle-o.png"
+        self.WP_icon_path_blue_crosshair=r"icons/crosshairs.png"
 
         self.startpoint=startpoint
         self.waypoint_nb = 0

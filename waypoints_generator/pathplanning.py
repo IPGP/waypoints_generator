@@ -1,10 +1,12 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
 from math import tan, radians
+import os
 import sys
 from collections import deque
 from itertools import cycle
 import time
+import argparse
 import configparser
 from ast import literal_eval
 from numpy import Inf
@@ -263,21 +265,70 @@ class PathPlanning:
 
 
 def main():
-    parser = configparser.ConfigParser()
-    parser.read('./sapine.ini')
-    points = deque()
 
+    arg_parser = argparse.ArgumentParser()
+#    arg_parser.add_argument ("-c", "--config", dest='config_file', default='config.ini', type=str);
+    arg_parser.add_argument ("-c", "--config", dest='config_file', 
+    help='the ini file',
+    default='sapine.ini', type=str,required=True)
+    args = arg_parser.parse_args()
 
     # parameters from INI file
-    points_list = parser.get("points","list_points")
-    a,b=literal_eval(parser.get("points","start_point"))
-    start_point = LatLon(a,b)
+    parser = configparser.ConfigParser()
 
+    if args.config_file and os.path.isfile(args.config_file):
+        parser.read(args.config_file)
+    else :
+        print(F'{args.config_file} does not exist or wrong path')
+        sys.exit(-1)
+    
+    #### PROJECT
+    # name
+    project_name = parser.get("project","name")
 
+    ### shape points
+    points = deque()
+    points_list = parser.get("project","list_points")
     for point in literal_eval(points_list):
         points.append(LatLon(point[0],point[1]))
 
-#    id_camera_json
+    # start point
+    a,b=literal_eval(parser.get("project","start_point"))
+    start_point = LatLon(a,b)
+    start_point.text = 'Start Point'
+
+    #### DRONE
+    drone_speed = float(parser.get("drone_parameters","drone_speed"))
+    onfinish=parser.get("drone_parameters","onfinish")
+    flight_distance = int(parser.get("drone_parameters","flight_distance"))
+    recouvrement_lat=float(parser.get("drone_parameters","recouvrement_lat"))
+    recouvrement_lon=float(parser.get("drone_parameters","recouvrement_lon"))
+    drone_azimuth=int(parser.get("drone_parameters","drone_azimuth"))
+    id_camera=parser.get("drone_parameters","id_camera")
+
+    #### MNT
+    dsm = parser.get("MNT","dsm")
+    if not os.path.isfile(dsm):
+        print(F'{dsm} does not exist or wrong path')
+        sys.exit(-1)
+
+    shaded_dsm = parser.get("MNT","shaded_dsm")
+    if not os.path.isfile(shaded_dsm):
+        print(F'{shaded_dsm} does not exist or wrong path')
+        sys.exit(-1)
+
+    tfw = parser.get("MNT","tfw")
+    if not os.path.isfile(tfw):
+        print(F'{tfw} does not exist or wrong path')
+        sys.exit(-1)
+
+    epsg_mnt = parser.get("MNT","epsg_mnt")
+
+    if 'fixed_pitch' in parser['MNT']:
+        fixed_pitch = int(parser.get("MNT","fixed_pitch"))
+    else:
+        fixed_pitch = None
+
 
     # a calculer a partir du dico JSON
     lateral_footprint = 200
@@ -312,23 +363,23 @@ def main():
             #print(F'\nCoordonnées converties => DroneOri a \t{a_north}\t{a_east}')
             #print(F'Coordonnées converties => DroneOri b \t{b_north}\t{b_east}\n')
             #print(b_east,b_north)
-            print('prof_'+str(i))
+            print(project_name+'_'+str(i))
             prof1 = DroneOri(
-            name='prof_'+str(i), dsm=dsm, tfw=tfw,
+            name=project_name+'_'+str(i), dsm=dsm, tfw=tfw,
             a_east=a_east, a_north=a_north, b_east=b_east, b_north=b_north,
             h=flight_distance, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=recouvrement_lon,
             takeoff_pt=coordonates_transformer.transform(start_point.lat, start_point.lon),
-            #fixed_pitch=75
+            fixed_pitch=fixed_pitch
             )
             prof1.dsm_profile()
             prof1.drone_orientations()
             prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
             final_waypoint_dict+=prof1.export_ori()
-            prof1.draw_map(shaded_dsm='waypoints_generator/drone_orientation/rge_alti_1m_2_shaded.tif')
+            prof1.draw_map(shaded_dsm=shaded_dsm)
             
 
     ################### kml from profils ##########################
-    wp_extras=dict2djikml(final_waypoint_dict,'0_sapine.kml',reverse_coordonates_transformer,speed = drone_speed)
+    wp_extras=dict2djikml(final_waypoint_dict,project_name+'.kml',reverse_coordonates_transformer,onfinish=onfinish,speed = drone_speed)
     # tmp_wp=wp_extras[0]
     # print('######################@')
     # print('distances entre chaque WP consécutifs')
@@ -360,7 +411,7 @@ def main():
         the_map.add_extra(extra, text=extra.text)
 
     # Exportation de la carte
-    the_map.export_to_file('profil_waypoints')
+    the_map.export_to_file(project_name)
     # Path_generator.export_to_kml()
 
 if __name__ == '__main__':
