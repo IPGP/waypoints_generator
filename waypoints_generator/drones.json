@@ -5,19 +5,17 @@
 	  "name": "Phantom4 RTK",
       "Cameras": [
         {
-          "camera": "Phantom4 RTK (3:2)",
+          "camera": "Phantom4 RTK (3:2)","focal":"8.8",
           "resolution_X": 5472,
           "resolution_Y": 3648,
-          "fieldOfView" : 84,
-          "x_sensor_size" :0,
-          "y_sensor_size" :0
+          "x_sensor_size" :"##########15.85",
+          "y_sensor_size" :10.56
         },
         {
-          "camera": "Phantom4 RTK (4:3)",
+          "camera": "Phantom4 RTK (4:3)","focal":"8.8",
           "resolution_X": 4864,
           "resolution_Y": 3648,
-          "fieldOfView" : 0,
-          "x_sensor_size" :0,
+          "x_sensor_size" :999999999999,
           "y_sensor_size" :0
         }
       ]
@@ -27,36 +25,32 @@
       "name": "Matrice 210 RTK V2",
       "Cameras": [
         {
-          "camera": "X7",
+          "camera": "X7-3/2","focal":"24",
           "resolution_X": 6016,
           "resolution_Y": 4008,
-          "fieldOfView" : 61,
           "x_sensor_size" :23.5,
-          "y_sensor_size" :12.5
+          "y_sensor_size" :15.7
         },
         {
-          "camera": "Multispectral",
+          "camera": "Multispectral","focal":"5.4",
           "resolution_X": 4000,
           "resolution_Y": 3000,
-          "fieldOfView" : 61.7,
           "x_sensor_size" :6.2,
           "y_sensor_size" :4.65
         },
         {
-          "camera": "XT2 Thermique",
+          "camera": "XT2 Thermique","focal":"13",
           "resolution_X": 640,
           "resolution_Y": 512,
-          "fieldOfView" : 999999999999,
           "x_sensor_size" :10.88,
           "y_sensor_size" :8.7
         },  
         {
-          "camera": "XT2 Optique",
+          "camera": "XT2 Optique","focal":"8",
           "resolution_X": 4000,
           "resolution_Y": 3000,
-          "fieldOfView" : 99999999999,
-          "x_sensor_size" :7.6,
-          "y_sensor_size" :5.7
+          "x_sensor_size" :8.7,
+          "y_sensor_size" :6.2
         }
       ]
     }

@@ -279,26 +279,42 @@ def main():
     """
     start_point = LatLon(44.350331,3.800653)
     start_point = LatLon(44.35288061211964, 3.812069520331229)
-    
     start_point.text = 'Start'
-
-
     a = LatLon(44.355611,3.804356)
     b = LatLon(44.356153,3.809774)
     c = LatLon(44.352146,3.810481)
     d = LatLon(44.349185,3.809540)
     e = LatLon(44.349576,3.804555)
     f = LatLon(44.354023,3.803181)
+    nom = "La_Sapine"
+    drone_speed = 15
+    onfinish='hover'
+    #nom_fichier_export_kml
+    #fixed_pitch
+    # seuil relief-vegetation
 
-    points = deque([a, b, c, d, e,f])
-
-    lateral_footprint = 200
-    longitudinal_footprint = 100
-    elevation = 100
+    flight_distance = 100
     recouvrement_lat=0.6
     recouvrement_lon=0.3
+    drone_azimuth=90
+
+     # load MNT - DEM altitude par rapport à l'ellipsoïde
+    dsm = 'waypoints_generator/drone_orientation/rge_alti_1m_2.tif'
+    #ou geotif
+    #tfw continet les infos de georeferencements
+    epsg_mnt = "epsg:2154"
+    tfw= 'waypoints_generator/drone_orientation/rge_alti_1m_2.tfw'
+    #shaded_dsm=
+
+#    id_camera_json
+
+    # a calculer a partir du dico JSON
+    lateral_footprint = 200
+    longitudinal_footprint = 100
+
+    points = deque([a, b, c, d, e,f])
     
-    Path_generator = PathPlanning(points=points,  bearing=90, lateral_footprint=lateral_footprint,
+    Path_generator = PathPlanning(points=points,  bearing=drone_azimuth, lateral_footprint=lateral_footprint,
                                   longitudinal_footprint=longitudinal_footprint, start_point=start_point, percent_recouvrement_lat=recouvrement_lat, percent_recouvrement_lon=recouvrement_lon)
 
     Path_generator.extra_point.append(start_point)
@@ -310,17 +326,13 @@ def main():
     ################### Profils ##########################
 
     # conversion des coordonnes https://pyproj4.github.io/pyproj/stable/gotchas.html#upgrading-to-pyproj-2-from-pyproj-1
-    epsg_mnt = "epsg:2154"
     epsg_in = "epsg:4126"
     coordonates_transformer = Transformer.from_crs(epsg_in, epsg_mnt)
     reverse_coordonates_transformer = Transformer.from_crs(epsg_mnt, epsg_in)
     final_waypoint_dict = []
-    # load MNT
-    dsm = 'waypoints_generator/drone_orientation/rge_alti_1m_2.tif'
-    tfw= 'waypoints_generator/drone_orientation/rge_alti_1m_2.tfw'
+   
     # i sert à nommer les numéros de profils
-    i = 0
-    for paire in Path_generator.export_to_paired_wp():
+    for i, paire in enumerate(Path_generator.export_to_paired_wp()):
         
         # test pour ne garder que les paires de points
         if paire[0] and paire [1]:
@@ -334,7 +346,7 @@ def main():
             prof1 = DroneOri(
             name='prof_'+str(i), dsm=dsm, tfw=tfw,
             a_east=a_east, a_north=a_north, b_east=b_east, b_north=b_north,
-            h=elevation, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=recouvrement_lon,
+            h=flight_distance, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=recouvrement_lon,
             takeoff_pt=coordonates_transformer.transform(start_point.lat, start_point.lon),
             #fixed_pitch=75
             )
@@ -343,12 +355,10 @@ def main():
             prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
             final_waypoint_dict+=prof1.export_ori()
             prof1.draw_map(shaded_dsm='waypoints_generator/drone_orientation/rge_alti_1m_2_shaded.tif')
-
-            i+=1
             
 
     ################### kml from profils ##########################
-    wp_extras=dict2djikml(final_waypoint_dict,'0_sapine.kml',reverse_coordonates_transformer,speed = 15)
+    wp_extras=dict2djikml(final_waypoint_dict,'0_sapine.kml',reverse_coordonates_transformer,speed = drone_speed)
     # tmp_wp=wp_extras[0]
     # print('######################@')
     # print('distances entre chaque WP consécutifs')

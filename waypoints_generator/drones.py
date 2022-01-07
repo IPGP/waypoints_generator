@@ -28,7 +28,7 @@ class Camera:
         
 class Drones:
     "Drones class"
-
+ 
     def __init__(self,json_file='drones.json'):
         """Drones get data from json file """
         self.camera_list=[]
