@@ -5,6 +5,8 @@ import sys
 from collections import deque
 from itertools import cycle
 import time
+import configparser
+from ast import literal_eval
 from numpy import Inf
 from pygeodesy.sphericalTrigonometry import LatLon
 from pygeodesy.sphericalNvector  import intersection, LatLon as LatLonS
@@ -17,6 +19,7 @@ from PIL import Image as ImagePil
 import numpy as np
 from dict2djikml import dict2djikml 
 from drone_orientation.classes.droneorientation import DroneOri
+
 
 # https://nbviewer.jupyter.org/github/python-visualization/folium/blob/master/examples/Rotate_icon.ipynb
 # rotation des icones
@@ -260,51 +263,19 @@ class PathPlanning:
 
 
 def main():
-    # """
-    # Martinique
-    # """
-    # start_point = LatLon(14.810431373395028, -61.176753253004485)
-    # start_point.text = 'Start'
-    # a = LatLon(14.801717517497558, -61.17830598375636)
-    # b = LatLon(14.803184637915658, -61.177470922032136)
-    # c = LatLon(14.804110982101069, -61.176259107347896)
-    # d = LatLon(14.80476281073443, -61.175343978459765)
-    # e = LatLon(14.804147551878703, -61.17414211429372)
-    # f = LatLon(14.802389075700889, -61.175630772903205)
-    # g = LatLon(14.801758424759862, -61.176496729696545)
+    parser = configparser.ConfigParser()
+    parser.read('./sapine.ini')
+    points = deque()
 
 
-    """
-    Sapine
-    """
-    start_point = LatLon(44.350331,3.800653)
-    start_point = LatLon(44.35288061211964, 3.812069520331229)
-    start_point.text = 'Start'
-    a = LatLon(44.355611,3.804356)
-    b = LatLon(44.356153,3.809774)
-    c = LatLon(44.352146,3.810481)
-    d = LatLon(44.349185,3.809540)
-    e = LatLon(44.349576,3.804555)
-    f = LatLon(44.354023,3.803181)
-    nom = "La_Sapine"
-    drone_speed = 15
-    onfinish='hover'
-    #nom_fichier_export_kml
-    #fixed_pitch
-    # seuil relief-vegetation
+    # parameters from INI file
+    points_list = parser.get("points","list_points")
+    a,b=literal_eval(parser.get("points","start_point"))
+    start_point = LatLon(a,b)
 
-    flight_distance = 100
-    recouvrement_lat=0.6
-    recouvrement_lon=0.3
-    drone_azimuth=90
 
-     # load MNT - DEM altitude par rapport à l'ellipsoïde
-    dsm = 'waypoints_generator/drone_orientation/rge_alti_1m_2.tif'
-    #ou geotif
-    #tfw continet les infos de georeferencements
-    epsg_mnt = "epsg:2154"
-    tfw= 'waypoints_generator/drone_orientation/rge_alti_1m_2.tfw'
-    #shaded_dsm=
+    for point in literal_eval(points_list):
+        points.append(LatLon(point[0],point[1]))
 
 #    id_camera_json
 
@@ -312,7 +283,6 @@ def main():
     lateral_footprint = 200
     longitudinal_footprint = 100
 
-    points = deque([a, b, c, d, e,f])
     
     Path_generator = PathPlanning(points=points,  bearing=drone_azimuth, lateral_footprint=lateral_footprint,
                                   longitudinal_footprint=longitudinal_footprint, start_point=start_point, percent_recouvrement_lat=recouvrement_lat, percent_recouvrement_lon=recouvrement_lon)
