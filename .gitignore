@@ -59,3 +59,5 @@ prof*_orientations.svg
 prof_*_map.svg
 .gitignore
 *.kml
+*.svg
+*.html
