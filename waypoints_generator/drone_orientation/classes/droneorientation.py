@@ -174,8 +174,7 @@ class DroneOri(object):
         self._ovlp_linreg_stats = ovlp_linreg_stats
         self._final_overlap = final_overlap
         self._fixed_pitch = fixed_pitch
-        
-        if self._ref_alti is not 0:
+        if self._ref_alti != 0:
             if self._takeoff_pt:
                 sys.exit("Error: ref_alti and takeoff_pt are incompatible "
                     "option. Please use only one at a time.")
@@ -183,7 +182,6 @@ class DroneOri(object):
                 print("Be careful when providing ref_alti: its vertical "
                     "reference must be the same as that of the DSM (e.g. the "
                     "ellipsoid or the geoid)")
-        
         self.read_dsm()
         self.compute_prof_az()
         self.compute_fov()
@@ -1074,7 +1072,8 @@ class DroneOri(object):
         
         fig.savefig('{}_orientations.svg'.format(self._name),
             bbox_inches='tight')
-    
+        plt.close()
+
     def draw_map(self, shaded_dsm=None, make_subset=False, disp_dsm_prof=True,
             disp_drone_grd=True, disp_drone_pos=True, disp_takeoff_pt=True):
         """
@@ -1133,11 +1132,11 @@ class DroneOri(object):
         colors = []
         for i, v in enumerate(drone_e_grd):
             # Alternate between 3 colors
-            if i%3 is 0:
+            if i%3 == 0:
                 c = 'r'
-            elif i%3 is 1:
+            elif i%3 == 1:
                 c = 'g'
-            elif i%3 is 2:
+            elif i%3 == 2:
                 c = 'b'
             colors.append(c)
         
@@ -1238,7 +1237,9 @@ class DroneOri(object):
         plt.tight_layout()
         
         fig.savefig('{}_map.svg'.format(self._name), bbox_inches='tight')
-    
+
+        plt.close()
+        
     def export_ori(self):
         """
         Exports all orientation information

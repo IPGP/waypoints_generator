@@ -6,7 +6,7 @@ import sys
 from collections import deque
 from itertools import cycle
 import time
-import argparse
+from argparse import ArgumentParser,ArgumentDefaultsHelpFormatter
 import configparser
 from ast import literal_eval
 from numpy import Inf
@@ -21,13 +21,14 @@ from PIL import Image as ImagePil
 import numpy as np
 from dict2djikml import dict2djikml 
 from drone_orientation.classes.droneorientation import DroneOri
-
+from drones import Camera, Drones
+from utils import bfg, bg, fg
 
 # https://nbviewer.jupyter.org/github/python-visualization/folium/blob/master/examples/Rotate_icon.ipynb
 # rotation des icones
 # Faire des schémas
 # https://www.math10.com/en/geometry/geogebra/fullscreen.html
-
+# emoji list https://unicode.org/emoji/charts/full-emoji-list.html#23f3
 
 DEBUG = False
 #DEBUG = True
@@ -266,8 +267,10 @@ class PathPlanning:
 
 def main():
 
-    arg_parser = argparse.ArgumentParser()
-#    arg_parser.add_argument ("-c", "--config", dest='config_file', default='config.ini', type=str);
+    arg_parser = ArgumentParser(prog='Waypoints Generator',
+                            description='Create waypoints from mnt with terrain awareness',
+                            formatter_class=ArgumentDefaultsHelpFormatter)
+
     arg_parser.add_argument ("-c", "--config", dest='config_file', 
     help='the ini file',
     default='sapine.ini', type=str,required=True)
@@ -282,6 +285,8 @@ def main():
         print(F'{args.config_file} does not exist or wrong path')
         sys.exit(-1)
     
+
+
     #### PROJECT
     # name
     project_name = parser.get("project","name")
@@ -300,11 +305,14 @@ def main():
     #### DRONE
     drone_speed = float(parser.get("drone_parameters","drone_speed"))
     onfinish=parser.get("drone_parameters","onfinish")
-    flight_distance = int(parser.get("drone_parameters","flight_distance"))
+    flight_distance = float(parser.get("drone_parameters","flight_distance"))
     recouvrement_lat=float(parser.get("drone_parameters","recouvrement_lat"))
     recouvrement_lon=float(parser.get("drone_parameters","recouvrement_lon"))
     drone_azimuth=int(parser.get("drone_parameters","drone_azimuth"))
     id_camera=parser.get("drone_parameters","id_camera")
+
+    drones_camera_db = Drones()
+    camera = drones_camera_db.get_camera_by_id(id_camera)
 
     #### MNT
     dsm = parser.get("MNT","dsm")
@@ -329,11 +337,25 @@ def main():
     else:
         fixed_pitch = None
 
-
     # a calculer a partir du dico JSON
-    lateral_footprint = 200
-    longitudinal_footprint = 100
+    # Available data
+    # camera.camera_name 
+    # camera.camera_resolution_x 
+    # camera.camera_resolution_y 
+    # camera.camera_focal  
+    # camera.camera_x_sensor_size 
+    # camera.camera_y_sensor_size 
 
+    
+    print(fg('Selected \U0001f4f7 is ',14))
+    print(camera.header())
+    print(bg(camera.__str__(),14))
+
+    lateral_footprint = camera.camera_x_sensor_size*flight_distance/float(camera.camera_focal)  
+    longitudinal_footprint = camera.camera_y_sensor_size*flight_distance/float(camera.camera_focal)
+
+    print(fg(F'lateral_footprint: {lateral_footprint}m\tlongitudinal_footprint {longitudinal_footprint}m',14))
+    print(fg(F'lateral_gsd: {lateral_footprint/camera.camera_resolution_x:.5f}m\tlongitudinal_gsd {longitudinal_footprint/camera.camera_resolution_y:.5f}m',14))
     
     Path_generator = PathPlanning(points=points,  bearing=drone_azimuth, lateral_footprint=lateral_footprint,
                                   longitudinal_footprint=longitudinal_footprint, start_point=start_point, percent_recouvrement_lat=recouvrement_lat, percent_recouvrement_lon=recouvrement_lon)
@@ -363,7 +385,7 @@ def main():
             #print(F'\nCoordonnées converties => DroneOri a \t{a_north}\t{a_east}')
             #print(F'Coordonnées converties => DroneOri b \t{b_north}\t{b_east}\n')
             #print(b_east,b_north)
-            print(project_name+'_'+str(i))
+            print("\U000023f3 Computing "+project_name+'_'+str(i)+ " profile")
             prof1 = DroneOri(
             name=project_name+'_'+str(i), dsm=dsm, tfw=tfw,
             a_east=a_east, a_north=a_north, b_east=b_east, b_north=b_north,
@@ -376,8 +398,8 @@ def main():
             prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
             final_waypoint_dict+=prof1.export_ori()
             prof1.draw_map(shaded_dsm=shaded_dsm)
+    print(bg(F"\U0001f449 L'altitude calculée au point de décollage à partir du MNT est {prof1.ref_alti:.0f} m. A vérifier avec l'altitude GPS du drone \U0001f448",9))
             
-
     ################### kml from profils ##########################
     wp_extras=dict2djikml(final_waypoint_dict,project_name+'.kml',reverse_coordonates_transformer,onfinish=onfinish,speed = drone_speed)
     # tmp_wp=wp_extras[0]

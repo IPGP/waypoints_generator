@@ -12,6 +12,15 @@ from pygeodesy.sphericalNvector import LatLon as LatLonsphericalNvector
 DEBUG = False
 DEBUG = True
 
+### To print in color
+#### ex  print(bg("text", 160))
+#### ex  print(fg("text", 160))
+#### https://stackoverflow.com/questions/287871/how-to-print-colored-text-to-the-terminal
+#### https://code.labstack.com/VfphHQ14
+fg = lambda text, color: "\33[38;5;" + str(color) + "m" + text + "\33[0m"
+bg = lambda text, color: "\33[48;5;" + str(color) + "m" + text + "\33[0m"
+bfg = lambda text, color_bg, color_fg: "\33[38;5;" + str(color_fg) + "m"+"\33[48;5;" + str(color_bg) + "m" + text + "\33[0m"
+
 
 def LatLontrigo2nvector(A):
     """ Return the sphericalNvector.LatLon version of a sphericalTrigonometry.LatLon """
