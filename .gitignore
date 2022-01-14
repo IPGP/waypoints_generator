@@ -34,30 +34,14 @@ Temporary Items
 
 # End of https://www.toptal.com/developers/gitignore/api/macos
 
-carte.html
 Biblio/___milechcabreira2018.pdf
 Biblio/CTDR_2020__Camera_Ready_Taua_Cabreira.pdf
 Biblio/difranco2016.pdf
-jupyter_holoviews/place_points.ipynb
-jupyter_holoviews/Untitled.ipynb
-jupyter_holoviews/Untitled1.ipynb
-jupyter_holoviews/.ipynb_checkpoints/place_points-checkpoint.ipynb
-jupyter_holoviews/.ipynb_checkpoints/Untitled-checkpoint.ipynb
-jupyter_holoviews/.ipynb_checkpoints/Untitled1-checkpoint.ipynb
+*.ipynb
 jupyter_holoviews/ml_annotators/anaconda-project.yml
-jupyter_holoviews/ml_annotators/ml_annotators.ipynb
 jupyter_holoviews/ml_annotators/README.md
-jupyter_holoviews/ml_annotators/Untitled.ipynb
-jupyter_holoviews/ml_annotators/.ipynb_checkpoints/ml_annotators-checkpoint.ipynb
-jupyter_holoviews/ml_annotators/.ipynb_checkpoints/Untitled-checkpoint.ipynb
-best_path_distance.html
-best_angle_nb_turns.html
-profil_waypoints.html
-test.kml
-.gitignore
-prof*_orientations.svg
-prof_*_map.svg
-.gitignore
+jgitignore
+*.svg
 *.kml
 *.svg
 *.html
