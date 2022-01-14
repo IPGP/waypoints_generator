@@ -347,9 +347,9 @@ def main():
     # camera.camera_y_sensor_size 
 
     
-    print(fg('Selected \U0001f4f7 is ',14))
+    print(fg('Selected \U0001f4f7 is ',87))
     print(camera.header())
-    print(bg(camera.__str__(),14))
+    print(bfg(camera.__str__(),106,232))
 
     lateral_footprint = camera.camera_x_sensor_size*flight_distance/float(camera.camera_focal)  
     longitudinal_footprint = camera.camera_y_sensor_size*flight_distance/float(camera.camera_focal)
