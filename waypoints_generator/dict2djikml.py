@@ -11,8 +11,13 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,altitude,on
       ON_FINISH = "Hover"
   elif onfinish == 'gohome':
       ON_FINISH = "GoHome"
+  elif onfinish == 'autoland':
+      ON_FINISH = "AutoLand"
+  elif onfinish == 'gofirstpoint':
+      ON_FINISH = "GoFirstPoint"
   else:
       sys.exit('onfinish shoud be hover or gohome')
+
   XML_string = """<?xml version="1.0" encoding="UTF-8"?>
 
   <kml xmlns="http://www.opengis.net/kml/2.2">

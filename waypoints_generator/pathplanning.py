@@ -9,6 +9,7 @@ import time
 from argparse import ArgumentParser,ArgumentDefaultsHelpFormatter
 import configparser
 from ast import literal_eval
+from unicodedata import name
 from numpy import Inf
 from pygeodesy.sphericalTrigonometry import LatLon
 from pygeodesy.sphericalNvector  import intersection, LatLon as LatLonS
@@ -286,33 +287,40 @@ def main():
         sys.exit(-1)
     
 
-
     #### PROJECT
     # name
     project_name = parser.get("project","name")
 
     ### shape points
     points = deque()
-    points_list = parser.get("project","list_points")
+    points_list = parser.get("project","points_list")
     for point in literal_eval(points_list):
         points.append(LatLon(point[0],point[1]))
 
     # start point
-    a,b=literal_eval(parser.get("project","start_point"))
-    start_point = LatLon(a,b)
-    start_point.text = 'Start Point'
+    takeoff_point = None
+    takeoff_altitude = None
+    
+    a,b=literal_eval(parser.get("project","takeoff_point"))
+    takeoff_point = LatLon(a,b)
+    takeoff_point.text = 'Takeoff Point'
+    if 'takeoff_altitude' in parser['project']:
+        takeoff_altitude = float(parser.get("project","takeoff_altitude"))
+    
 
     #### DRONE
     drone_speed = float(parser.get("drone_parameters","drone_speed"))
     onfinish=parser.get("drone_parameters","onfinish")
-    flight_distance = float(parser.get("drone_parameters","flight_distance"))
-    recouvrement_lat=float(parser.get("drone_parameters","recouvrement_lat"))
-    recouvrement_lon=float(parser.get("drone_parameters","recouvrement_lon"))
+    ground_distance = float(parser.get("drone_parameters","ground_distance"))
+    side_overlap=float(parser.get("drone_parameters","side_overlap"))
+    front_overlap=float(parser.get("drone_parameters","front_overlap"))
     drone_azimuth=int(parser.get("drone_parameters","drone_azimuth"))
     id_camera=parser.get("drone_parameters","id_camera")
-
     drones_camera_db = Drones()
     camera = drones_camera_db.get_camera_by_id(id_camera)
+
+  
+
 
     #### MNT
     dsm = parser.get("MNT","dsm")
@@ -351,16 +359,16 @@ def main():
     print(camera.header())
     print(bfg(camera.__str__(),106,232))
 
-    lateral_footprint = camera.camera_x_sensor_size*flight_distance/float(camera.camera_focal)  
-    longitudinal_footprint = camera.camera_y_sensor_size*flight_distance/float(camera.camera_focal)
+    lateral_footprint = camera.camera_x_sensor_size*ground_distance/float(camera.camera_focal)  
+    longitudinal_footprint = camera.camera_y_sensor_size*ground_distance/float(camera.camera_focal)
 
     print(fg(F'lateral_footprint: {lateral_footprint}m\tlongitudinal_footprint {longitudinal_footprint}m',14))
     print(fg(F'lateral_gsd: {lateral_footprint/camera.camera_resolution_x:.5f}m\tlongitudinal_gsd {longitudinal_footprint/camera.camera_resolution_y:.5f}m',14))
     
     Path_generator = PathPlanning(points=points,  bearing=drone_azimuth, lateral_footprint=lateral_footprint,
-                                  longitudinal_footprint=longitudinal_footprint, start_point=start_point, percent_recouvrement_lat=recouvrement_lat, percent_recouvrement_lon=recouvrement_lon)
+                                  longitudinal_footprint=longitudinal_footprint, start_point=takeoff_point, percent_recouvrement_lat=side_overlap, percent_recouvrement_lon=front_overlap)
 
-    Path_generator.extra_point.append(start_point)
+    Path_generator.extra_point.append(takeoff_point)
     Path_generator.generate_path_normal_plus()
 
 #    for paire in Path_generator.export_to_paired_wp():
@@ -386,13 +394,23 @@ def main():
             #print(F'Coordonnées converties => DroneOri b \t{b_north}\t{b_east}\n')
             #print(b_east,b_north)
             print("\U000023f3 Computing "+project_name+'_'+str(i)+ " profile")
-            prof1 = DroneOri(
-            name=project_name+'_'+str(i), dsm=dsm, tfw=tfw,
-            a_east=a_east, a_north=a_north, b_east=b_east, b_north=b_north,
-            h=flight_distance, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=recouvrement_lon,
-            takeoff_pt=coordonates_transformer.transform(start_point.lat, start_point.lon),
-            fixed_pitch=fixed_pitch
-            )
+
+            if takeoff_altitude:
+                prof1 = DroneOri(
+                name=project_name+'_'+str(i), dsm=dsm, tfw=tfw,
+                a_east=a_east, a_north=a_north, b_east=b_east, b_north=b_north, 
+                h=ground_distance, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=front_overlap,
+                fixed_pitch=fixed_pitch,
+                ref_alti=takeoff_altitude
+                )
+            else :
+                prof1 = DroneOri(
+                name=project_name+'_'+str(i), dsm=dsm, tfw=tfw,
+                a_east=a_east, a_north=a_north, b_east=b_east, b_north=b_north,
+                h=ground_distance, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=front_overlap,
+                fixed_pitch=fixed_pitch,
+                takeoff_pt=coordonates_transformer.transform(takeoff_point.lat, takeoff_point.lon)
+                )
             prof1.dsm_profile()
             prof1.drone_orientations()
             ### create SVG with profile and drone orientations
@@ -403,7 +421,10 @@ def main():
             # Add waypoints to main dict
             final_waypoint_dict+=prof1.export_ori()
             
-    print(bg(F"\U0001f449 L'altitude calculée au point de décollage à partir du MNT est {prof1.ref_alti:.0f} m. A vérifier avec l'altitude GPS du drone \U0001f448",9))
+    if takeoff_altitude :
+        print(bg(F"\U0001f449 L'altitude de décollage utilisée est {prof1.ref_alti:.0f} m. A vérifier avec l'altitude GPS du drone \U0001f448",9))
+    else:
+        print(bg(F"\U0001f449 L'altitude calculée au point de décollage à partir du MNT est {prof1.ref_alti:.0f} m. A vérifier avec l'altitude GPS du drone \U0001f448",9))
             
     ################### kml from profils ##########################
     #from IPython import embed; embed()
@@ -420,7 +441,7 @@ def main():
         Path_generator.extra_point.append(wp)
 
     # export map
-    the_map = WaypointMap(start_point)
+    the_map = WaypointMap(takeoff_point)
     # on place les limites de la zone
     the_map.add_polygon(points=points, color='#ff7800', fill=True,
                         fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
