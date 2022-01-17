@@ -57,7 +57,7 @@ class PathPlanning:
 
         self.nb_points = len(self.points)
         self.bearing = bearing
-#        if DEBUG: print('Les points de ce pathplanning sont {}'.format(self.points))
+        if DEBUG: print('Les points de ce pathplanning sont {}'.format(self.points))
         self.waypoint_list = []
         self.paired_waypoints_list = []
         self.extra_point = []
@@ -395,13 +395,19 @@ def main():
             )
             prof1.dsm_profile()
             prof1.drone_orientations()
-            prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
+            ### create SVG with profile and drone orientations
+            if DEBUG: prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
+            ### create SVG map with profile 
+            if DEBUG: prof1.draw_map(shaded_dsm=shaded_dsm)
+
+            # Add waypoints to main dict
             final_waypoint_dict+=prof1.export_ori()
-            prof1.draw_map(shaded_dsm=shaded_dsm)
+            
     print(bg(F"\U0001f449 L'altitude calculée au point de décollage à partir du MNT est {prof1.ref_alti:.0f} m. A vérifier avec l'altitude GPS du drone \U0001f448",9))
             
     ################### kml from profils ##########################
-    wp_extras=dict2djikml(final_waypoint_dict,project_name+'.kml',reverse_coordonates_transformer,onfinish=onfinish,speed = drone_speed)
+    #from IPython import embed; embed()
+    wp_extras=dict2djikml(final_waypoint_dict,project_name+'.kml',reverse_coordonates_transformer,altitude=prof1.ref_alti,onfinish=onfinish,speed = drone_speed)
     # tmp_wp=wp_extras[0]
     # print('######################@')
     # print('distances entre chaque WP consécutifs')
@@ -427,14 +433,13 @@ def main():
     the_map.add_colored_waypoint_path(Path_generator.waypoint_list)
 
     # Add extra points (for DEBUG)
-    #print("#### Extra ####")
+    if DEBUG: print("#### Extra Points ####")
     for extra in Path_generator.extra_point:
-        #print('extra text '+extra.text + '\t\tExtra point\t' + str(extra.lat)+ '\t'+str(extra.lon))
+        if DEBUG: print('extra text '+extra.text + '\t\tExtra point\t' + str(extra.lat)+ '\t'+str(extra.lon))
         the_map.add_extra(extra, text=extra.text)
 
-    # Exportation de la carte
+    # Export html map
     the_map.export_to_file(project_name)
-    # Path_generator.export_to_kml()
 
 if __name__ == '__main__':
     main()

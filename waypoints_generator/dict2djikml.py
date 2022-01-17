@@ -4,7 +4,7 @@ from pyproj import Transformer
 from pygeodesy.sphericalNvector  import intersection, LatLon as LatLonS
 
 
-def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='hover',speed = 5,turnmode = 'Auto'):
+def dict2djikml (dic,output_filename,reverse_coordonates_transformer,altitude,onfinish='hover',speed = 5,turnmode = 'Auto'):
   extra_points=[]
 
   if onfinish == 'hover':
@@ -13,7 +13,6 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='h
       ON_FINISH = "GoHome"
   else:
       sys.exit('onfinish shoud be hover or gohome')
-
   XML_string = """<?xml version="1.0" encoding="UTF-8"?>
 
   <kml xmlns="http://www.opengis.net/kml/2.2">
@@ -23,6 +22,7 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='h
       <ExtendedData xmlns:mis="www.dji.com">
         <mis:type>Waypoint</mis:type>
         <mis:stationType>0</mis:stationType>
+ 
       </ExtendedData>
       <Style id="waylineGreenPoly">
         <LineStyle>
@@ -96,6 +96,8 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='h
         <description>Wayline</description>
         <visibility>1</visibility>
         <ExtendedData xmlns:mis="www.dji.com">
+          <start_altitude>$altitude</start_altitude>
+          <used_altitude>$altitude</used_altitude>
           <mis:altitude>50.0</mis:altitude>
           <mis:autoFlightSpeed>5.0</mis:autoFlightSpeed>
           <mis:actionOnFinish>$ON_FINISH</mis:actionOnFinish>
@@ -123,6 +125,7 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='h
       </Placemark>
     </Document>
   </kml>""")
+
 
   if (speed > 15) or (speed <= 0):
       sys.exit('speed should be >0 or <=15 m/s ')
@@ -165,7 +168,6 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='h
           gimbal = gimbal+'.0'
 
       #print(F'{name}\t{lat}\t{lon}\t{heading}\t{gimbal}')
-
       XML_string += waypoint_start.substitute(
           turnmode=turnmode, waypoint_number=waypoint_nb, speed=speed, heading=heading, gimbal=gimbal)
       action_list = 'SHOOT'
@@ -177,8 +179,7 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,onfinish='h
       waypoint_nb += 1
     # remove last space from coordinates string
   all_coordinates = all_coordinates[:-1]
-  XML_string += xml_end.substitute(all_coordinates=all_coordinates,
-                                  ON_FINISH=ON_FINISH)
+  XML_string += xml_end.substitute(all_coordinates=all_coordinates,ON_FINISH=ON_FINISH, altitude=altitude)
 
   with open(output_filename, 'w') as output_file:
       output_file.write(XML_string)
