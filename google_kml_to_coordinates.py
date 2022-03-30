@@ -18,10 +18,16 @@ while line := args.infile.readline():
         coordinates = line
         next_line_is_coordinates = False
 
+# removing leading and trailing spaces
 coordinates_string=coordinates.lstrip().rstrip()
 
+# split each point
+coordinates_tab = coordinates_string.split(" ")
+nb_of_coordinates= len(coordinates_tab)
+
 final_string='points_list =['
-for coordinate in coordinates_string.split(" "):
+for  i in range(nb_of_coordinates-1):
+    coordinate = coordinates_tab[i]
     lon,lat, alt = coordinate.split(',')
     if debug : print(f'lat {lat} lon {lon} alt {alt}')
     final_string += f'({lat},{lon}),'
