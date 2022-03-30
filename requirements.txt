@@ -1,0 +1,10 @@
+folium==0.12.1
+geopy==2.2.0
+gpxplotter==0.2.9
+matplotlib==3.4.3
+numpy==1.20.3
+Pillow==9.0.0
+PyGeodesy==21.9.16
+pyproj==3.2.1
+scikit_learn==1.0.2
+setuptools==59.0.1
