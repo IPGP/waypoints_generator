@@ -55,7 +55,7 @@ if args.out_ini_file:
     with os.fdopen(fd,'w') as tmp_file:
         with open( args.out_ini_file,'r') as file0:
             for line in file0:
-                if not "points_list =[" in line:
+                if not "points_list =" in line:
                     tmp_file.write(line)
                 else :
                    tmp_file.write(final_string)
