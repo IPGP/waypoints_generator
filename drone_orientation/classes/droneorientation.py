@@ -403,7 +403,6 @@ class DroneOri(object):
         """
         Extract ref_alti from the DSM at the coordinates of the takeoff point
         """
-        
         row = round((self._takeoff_pt[1] - self._top_left_n) / self._y_spacing)
         col = round((self._takeoff_pt[0] - self._top_left_e) / self._x_spacing)
         if row < 0 or col < 0:

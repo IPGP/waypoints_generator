@@ -319,8 +319,6 @@ def main():
     drones_camera_db = Drones()
     camera = drones_camera_db.get_camera_by_id(id_camera)
 
-  
-
 
     #### MNT
     dsm = parser.get("MNT","dsm")
@@ -370,7 +368,8 @@ def main():
 
     Path_generator.extra_point.append(takeoff_point)
     Path_generator.generate_path_normal_plus()
-
+ 
+ 
 #    for paire in Path_generator.export_to_paired_wp():
 #        print(paire)
 
@@ -392,14 +391,16 @@ def main():
             b_east, b_north = coordonates_transformer.transform(paire[1][0],paire[1][1])
             #print(F'\nCoordonnées converties => DroneOri a \t{a_north}\t{a_east}')
             #print(F'Coordonnées converties => DroneOri b \t{b_north}\t{b_east}\n')
-            #print(b_east,b_north)
+            #print(f'a_east {a_east},a_north {a_north} b_east {b_east},b_north {b_north} ')
             print("\U000023f3 Computing "+project_name+'_'+str(i)+ " profile")
 
             if takeoff_altitude:
                 prof1 = DroneOri(
                 name=project_name+'_'+str(i), dsm=dsm, tfw=tfw,
                 a_east=a_east, a_north=a_north, b_east=b_east, b_north=b_north, 
-                h=ground_distance, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=front_overlap,
+                h=ground_distance, sensor_size=(float(camera.camera_x_sensor_size) ,float(camera.camera_y_sensor_size) ),
+                img_size=(float(camera.camera_resolution_x) ,float(camera.camera_resolution_y)),
+                focal=float(camera.camera_focal), ovlp=front_overlap,
                 fixed_pitch=fixed_pitch,
                 ref_alti=takeoff_altitude
                 )
@@ -407,7 +408,10 @@ def main():
                 prof1 = DroneOri(
                 name=project_name+'_'+str(i), dsm=dsm, tfw=tfw,
                 a_east=a_east, a_north=a_north, b_east=b_east, b_north=b_north,
-                h=ground_distance, sensor_size=(23.5,15.7), img_size=(6016,3376), focal=24, ovlp=front_overlap,
+                h=ground_distance, sensor_size=(float(camera.camera_x_sensor_size) ,float(camera.camera_y_sensor_size) ),
+                img_size=(float(camera.camera_resolution_x) ,float(camera.camera_resolution_y)),
+                focal=float(camera.camera_focal),
+                ovlp=front_overlap,
                 fixed_pitch=fixed_pitch,
                 takeoff_pt=coordonates_transformer.transform(takeoff_point.lat, takeoff_point.lon)
                 )
@@ -416,7 +420,7 @@ def main():
             ### create SVG with profile and drone orientations
             if DEBUG: prof1.draw_orientations(disp_linereg=True, disp_footp=True, disp_fov=True)
             ### create SVG map with profile 
-            if DEBUG: prof1.draw_map(shaded_dsm=shaded_dsm)
+            #if DEBUG: prof1.draw_map(shaded_dsm=shaded_dsm)
 
             # Add waypoints to main dict
             final_waypoint_dict+=prof1.export_ori()
