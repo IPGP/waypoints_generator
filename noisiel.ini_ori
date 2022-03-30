@@ -1,0 +1,37 @@
+######    Sapine
+[project]
+## name should not have space because it will be used to created output files
+name = Noisiel
+
+takeoff_point = (44.35288061211964, 3.812069520331229)
+points_list =[(44.355611,3.804356), (44.356153,3.809774),(44.352146,3.810481), (44.349185,3.809540), (44.349576,3.804555),(44.354023,3.803181)]
+
+# optional takeoff_altitude 
+#takeoff_altitude = 1200
+
+[drone_parameters]
+# drone speed between waypoints in m/s
+drone_speed = 15
+# after finishing the mission the drone can either hover, autoland, gohome, gofirstpoint
+onfinish = hover
+# distance to the ground
+ground_distance = 200
+# side overlap between 0 (0%) and 1 (100%)
+side_overlap = 0.6
+# front overlap between 0 (0%) and 1 (100%)
+front_overlap = 0.3
+# drone azimuth used for the profiles
+drone_azimuth = 90
+# id_camera is a reference to one of the camera of the drones.json
+id_camera = M210_X7
+
+[MNT]
+# load MNT - DEM altitude par rapport à l'ellipsoïde
+dsm = drone_orientation/rge_alti_1m_2.tif
+shaded_dsm = drone_orientation/rge_alti_1m_2_shaded.tif
+#ou geotif
+#tfw continet les infos de georeferencements
+epsg_mnt = epsg:2154
+tfw = drone_orientation/rge_alti_1m_2.tfw
+#### Fixed pitch value or None
+#fixed_pitch = 75
