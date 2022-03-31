@@ -319,6 +319,10 @@ def main():
     drones_camera_db = Drones()
     camera = drones_camera_db.get_camera_by_id(id_camera)
 
+    if 'fixed_pitch' in parser['drone_parameters']:
+        fixed_pitch = int(parser.get("drone_parameters","fixed_pitch"))
+    else:
+        fixed_pitch = None
 
     #### MNT
     dsm = parser.get("MNT","dsm")
@@ -338,10 +342,6 @@ def main():
 
     epsg_mnt = parser.get("MNT","epsg_mnt")
 
-    if 'fixed_pitch' in parser['MNT']:
-        fixed_pitch = int(parser.get("MNT","fixed_pitch"))
-    else:
-        fixed_pitch = None
 
     # a calculer a partir du dico JSON
     # Available data
