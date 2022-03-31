@@ -45,3 +45,5 @@ jgitignore
 *.kml
 *.svg
 *.html
+
+.idea

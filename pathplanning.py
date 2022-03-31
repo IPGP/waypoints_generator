@@ -57,14 +57,9 @@ class PathPlanning:
         self.CENTROID_LATLON = centroidOf(self.points, LatLon=LatLon)
 
         self.nb_points = len(self.points)
-        self.bearing = bearing
-        if DEBUG: print('Les points de ce pathplanning sont {}'.format(self.points))
-        self.waypoint_list = []
-        self.paired_waypoints_list = []
-        self.extra_point = []
 
-        self.distances = []
-        self.bearings = []
+        if DEBUG: print('Les points de ce pathplanning sont {}'.format(self.points))
+
         if isclockwise(points):
             self.othogonal_increment = 90
             self.isclockwise = True
@@ -82,7 +77,100 @@ class PathPlanning:
             (1-percent_recouvrement_lon)
         self.increment_lat = self.lateral_footprint * \
             (1-percent_recouvrement_lat)
+        
+        ## Auto-bearing
+        if 'auto_min_distance' in bearing:
+            self.bearing = self.find_best_angle(distance=True,turns=False)
+            print(f"Best angle for shortest path is {self.bearing} ")
+        elif 'auto_min_turns' in bearing:
+            self.bearing = self.find_best_angle(distance=False,turns=True)
+            print(f"Best angle for minimum turns is {self.bearing} ")
+        else:
+            self.bearing = int(bearing)
+        self.waypoint_list = []
+        self.paired_waypoints_list = []
+        self.extra_point = []
+
+        self.distances = []
+        self.bearings = []
         self.compute_distances_and_bearings(self.points)
+
+
+
+    def find_best_angle(self,distance=True,turns=False):
+        distance_min = Inf
+        nb_turns = Inf
+        best_angle_distance = None
+        best_angle_nb_turns = None
+        best_path_nb_turns = None
+        best_path_distance = None
+
+        turns_array=[]
+        distances_array=[]
+
+        print('Compute best angle ')
+        steps = ["⢿", "⣻", "⣽", "⣾", "⣷", "⣯", "⣟", "⡿"]
+
+        idx = 0
+        best_path_nb_turns = None
+
+        # find the best angles for nb_turns and total distance from start_point
+        RANGE = range(0, 180, 1)
+        for angle in RANGE:
+            print(f"\r\t{steps[idx % len(steps)]}{steps[idx % len(steps)]}{angle}{steps[idx % len(steps)]}{steps[idx % len(steps)]}", flush=True, end="")
+
+            idx += 1
+            self.bearing = angle 
+            self.waypoint_list = []
+            self.paired_waypoints_list = []
+            self.extra_point = []
+
+            self.distances = []
+            self.bearings = []
+            self.compute_distances_and_bearings(self.points)
+
+            # Generate the path
+            self.generate_path_normal_plus()
+
+            tmp_length, tmp_nb_turns = self.compute_length_and_turns()
+            turns_array.append(tmp_nb_turns)
+            distances_array.append(tmp_length)
+
+            if not best_path_nb_turns:
+                best_path_nb_turns = self
+            
+            #print(f'Angle {angle} distance {tmp_length} tmp_nb_turns {tmp_nb_turns}')
+            # minimum distance
+            if tmp_length < distance_min:
+                distance_min = tmp_length
+                best_distance, best_distance_nb_turns = self.compute_length_and_turns()
+                best_angle_distance = angle
+            # minimum turns
+            if tmp_nb_turns < nb_turns :
+                nb_turns = tmp_nb_turns 
+                best_angle_nb_turns = angle
+                best_nb_turns_distance, best_nb_turns = self.compute_length_and_turns()
+                #print(F'Best nb turns {nb_turns} avec angle {angle}')
+
+            if tmp_nb_turns == nb_turns and tmp_length<best_path_nb_turns.total_distance:
+                nb_turns = tmp_nb_turns 
+                best_angle_nb_turns = angle
+                #best_path_nb_turns = Path_generator
+
+            #if tmp_nb_turns > nb_turns :
+            #    break
+
+        print('#######################')
+        print(F'Distance : Angle {best_angle_distance} distance {best_distance} nb_turns {best_distance_nb_turns}')
+        print(F'Nb Turns : Angle {best_angle_nb_turns} distance {best_nb_turns_distance} nb_turns {best_nb_turns}')
+        print('#######################')
+
+        # If same nb_of_turns, return shortest distance
+        if best_nb_turns == best_distance_nb_turns:
+            return best_angle_distance
+
+        if distance: return best_angle_distance
+        elif turns: return best_angle_nb_turns
 
     def create_segments(self):
         # Create all the segments of the area
@@ -314,7 +402,7 @@ def main():
     ground_distance = float(parser.get("drone_parameters","ground_distance"))
     side_overlap=float(parser.get("drone_parameters","side_overlap"))
     front_overlap=float(parser.get("drone_parameters","front_overlap"))
-    drone_azimuth=int(parser.get("drone_parameters","drone_azimuth"))
+    drone_azimuth=parser.get("drone_parameters","drone_azimuth")
     id_camera=parser.get("drone_parameters","id_camera")
     drones_camera_db = Drones()
     camera = drones_camera_db.get_camera_by_id(id_camera)
