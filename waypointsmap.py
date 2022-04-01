@@ -5,7 +5,7 @@ from geopy import point
 from gpxplotter import create_folium_map
 from numpy.lib.function_base import append
 from waypoint import WayPoint
-from utils import getAnglelatlon
+from utils import get_angle_latlon
 from pygeodesy.sphericalTrigonometry import LatLon 
 from collections import deque
 
@@ -222,7 +222,7 @@ def main():
     lat = 48.84482270388685
     lon = 2.3562098704389163
 
-    orientation = getAnglelatlon(a, b,c)
+    orientation = get_angle_latlon(a, b,c)
     loc_IPGP = LatLon(lat,lon)
     IPGP = WayPoint(loc_IPGP, orientation, emprise_laterale,
                     emprise_longitudinale)

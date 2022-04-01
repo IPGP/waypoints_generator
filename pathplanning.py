@@ -13,7 +13,7 @@ from pygeodesy.sphericalTrigonometry import LatLon
 from pygeodesy.sphericalNvector import intersection, LatLon as LatLonS
 from pygeodesy.points import isclockwise, isconvex, centroidOf
 from pyproj import Transformer
-from utils import getAnglelatlon,bfg, bg, fg
+from utils import get_angle_latlon,background_foreground_color, background_color, foreground_color
 from waypoint import WayPoint
 from waypointsmap import WaypointMap
 from dict2djikml import dict2djikml
@@ -204,7 +204,7 @@ class PathPlanning:
         preceding_point = input_points[-1]
         while i < len(input_points):
             this_point, next_point = next_point, next(point_cycle)
-            this_point.angle = getAnglelatlon(
+            this_point.angle = get_angle_latlon(
                 preceding_point, this_point, next_point)
             this_point.bearing = this_point.compassAngleTo(next_point)
             this_point.l = this_point.distanceTo(next_point)
@@ -454,17 +454,17 @@ def main():
     # camera.camera_x_sensor_size
     # camera.camera_y_sensor_size
 
-    print(fg('Selected \U0001f4f7 is ', 87))
+    print(foreground_color('Selected \U0001f4f7 is ', 87))
     print(camera.header())
-    print(bfg(camera.__str__(), 106, 232))
+    print(background_foreground_color(camera.__str__(), 106, 232))
 
     lateral_footprint = camera.camera_x_sensor_size * \
         ground_distance/float(camera.camera_focal)
     longitudinal_footprint = camera.camera_y_sensor_size * \
         ground_distance/float(camera.camera_focal)
 
-    print(fg(F'lateral_footprint: {lateral_footprint}m\tlongitudinal_footprint {longitudinal_footprint}m', 14))
-    print(fg(F'lateral_gsd: {lateral_footprint/camera.camera_resolution_x:.5f}m\tlongitudinal_gsd {longitudinal_footprint/camera.camera_resolution_y:.5f}m', 14))
+    print(foreground_color(F'lateral_footprint: {lateral_footprint}m\tlongitudinal_footprint {longitudinal_footprint}m', 14))
+    print(foreground_color(F'lateral_gsd: {lateral_footprint/camera.camera_resolution_x:.5f}m\tlongitudinal_gsd {longitudinal_footprint/camera.camera_resolution_y:.5f}m', 14))
 
     path_generator = PathPlanning(points=points,  bearing=drone_azimuth, lateral_footprint=lateral_footprint,
                                   longitudinal_footprint=longitudinal_footprint, start_point=takeoff_point, percent_recouvrement_lat=side_overlap, percent_recouvrement_lon=front_overlap)
@@ -536,11 +536,11 @@ def main():
 
     if takeoff_altitude:
         print(
-            bg(F"\U0001f449 L'altitude de décollage utilisée est {prof1.ref_alti:.0f} m.\
+            background_color(F"\U0001f449 L'altitude de décollage utilisée est {prof1.ref_alti:.0f} m.\
                  À vérifier avec l'altitude GPS du drone \U0001f448", 9))
     else:
         print(
-            bg(F"\U0001f449 L'altitude calculée au point de décollage à partir du MNT est {prof1.ref_alti:.0f} m.\
+            background_color(F"\U0001f449 L'altitude calculée au point de décollage à partir du MNT est {prof1.ref_alti:.0f} m.\
                  À vérifier avec l'altitude GPS du drone \U0001f448", 9))
 
     ################### kml from profils ##########################

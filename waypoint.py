@@ -51,10 +51,10 @@ class WayPoint:
 #        print('WP1 {} {} WP2 {} {}'.format(self.lat,self.lon,waypoint_2.lat,waypoint_2.lon))
         if isclockwise:
            # print( ' self.X0 {} self.X1 {} waypoint_2.X0 {} waypoint_2.X1 {}'.format(self.X0,self.X1,waypoint_2.X0,waypoint_2.X1))
-            return doIntersect(self.X0_latlon,self.X1_latlon,waypoint_2.X0_latlon,waypoint_2.X1_latlon)
+            return do_intersect(self.X0_latlon,self.X1_latlon,waypoint_2.X0_latlon,waypoint_2.X1_latlon)
         else:
            # print( ' self.X2 {} self.X3 {} waypoint_2.X2 {} waypoint_2.X3 {}'.format(self.X2,self.X3,waypoint_2.X2,waypoint_2.X3))
-            return doIntersect(self.X2_latlon,self.X3_latlon,waypoint_2.X2_latlon,waypoint_2.X3_latlon)
+            return do_intersect(self.X2_latlon,self.X3_latlon,waypoint_2.X2_latlon,waypoint_2.X3_latlon)
         
 
     def emprise_coordinates(self):

@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 import json
 import sys
-from utils import bfg, bg
+from utils import background_foreground_color, background_color
 # Json valider
 # https://jsonlint.com/
 
@@ -62,15 +62,15 @@ class Drones:
         header += f"{'Sensor resolution px':^17s}|"
         header += f"{'Focal mm':^13s}|"
         header += f"{'Sensor size mm':^13s}|"
-        print(bfg(header, 93, 11))
+        print(background_foreground_color(header, 93, 11))
 
         # Cameras with alternate colors
 #        for i,camdrone in enumerate(self.camera_dict.items()):
         for i, (key, camdrone) in enumerate(self.camera_dict.items()):
             if i % 2 == 0:
-                print(bg(camdrone.__str__(), 28))
+                print(background_color(camdrone.__str__(), 28))
             else:
-                print(bg(camdrone.__str__(), 19))
+                print(background_color(camdrone.__str__(), 19))
 
     def get_camera_by_id(self, camera_id):
         """return camera with camera_number index
@@ -79,7 +79,7 @@ class Drones:
         if cam:
             return cam
         else:
-            print(F"camera_id {bg(camera_id,9)} is not in the database. Available camera are")
+            print(F"camera_id {background_color(camera_id,9)} is not in the database. Available camera are")
             self.print()
             sys.exit(-1)
 

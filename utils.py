@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-from typing import Deque
 from math import degrees, acos,  sqrt
-from collections import deque
 from geopy.distance import geodesic
-import numpy as np
 from pygeodesy.sphericalTrigonometry import LatLon as LatLontri
 from pygeodesy.sphericalNvector import LatLon as LatLonsphericalNvector
 
@@ -12,86 +9,68 @@ from pygeodesy.sphericalNvector import LatLon as LatLonsphericalNvector
 DEBUG = False
 DEBUG = True
 
-### To print in color
-#### ex  print(bg("text", 160))
-#### ex  print(fg("text", 160))
-#### https://stackoverflow.com/questions/287871/how-to-print-colored-text-to-the-terminal
-#### https://code.labstack.com/VfphHQ14
-fg = lambda text, color: "\33[38;5;" + str(color) + "m" + text + "\33[0m"
-bg = lambda text, color: "\33[48;5;" + str(color) + "m" + text + "\33[0m"
-bfg = lambda text, color_bg, color_fg: "\33[38;5;" + str(color_fg) + "m"+"\33[48;5;" + str(color_bg) + "m" + text + "\33[0m"
+# To print in color
+# ex  print(bg("text", 160))
+# ex  print(fg("text", 160))
+# https://stackoverflow.com/questions/287871/how-to-print-colored-text-to-the-terminal
+# https://code.labstack.com/VfphHQ14
 
 
-def LatLontrigo2nvector(A):
-    """ Return the sphericalNvector.LatLon version of a sphericalTrigonometry.LatLon """
-    return LatLonsphericalNvector(A.lat,A.lon)
+def foreground_color(text, color): return "\33[38;5;" + str(color) + "m" + text + "\33[0m"
+def background_color(text, color): return "\33[48;5;" + str(color) + "m" + text + "\33[0m"
 
-def test_LatLontrigo2nvector():
-    """ Test the LatLontrigo2nvector method"""
-    a = LatLontri(2,4)
-    return type(LatLontrigo2nvector(a))==LatLonsphericalNvector
 
-def getAngle(A, B, C):
+def background_foreground_color(text, color_bg, color_fg): return "\33[38;5;" + str(
+    color_fg) + "m"+"\33[48;5;" + str(color_bg) + "m" + text + "\33[0m"
+
+
+
+def get_angle(point_a, point_b, point_c):
     "return angle en degrees between A,B and C in degrees"
-    AB = geodesic(A, B).m
-    BC = geodesic(B, C).m
-    CA = geodesic(A, C).m
+    distance_ab = geodesic(point_a, point_b).m
+    distance_bc = geodesic(point_b, point_c).m
+    distance_ca = geodesic(point_a, point_c).m
 
-    return degrees(acos((AB*AB+BC*BC-CA*CA)/(2*AB*BC)))
+    return degrees(acos((distance_ab*distance_ab+distance_bc*distance_bc-distance_ca*distance_ca)/(2*distance_ab*distance_bc)))
 
-def getAnglelatlon(a, b,c):
+
+def get_angle_latlon(point_a, point_b, point_c):
     "return angle en degrees between Latlon A,B and C in degrees"
 
-    AB = a.distanceTo(b)
-    BC = b.distanceTo(c)
-    CA = c.distanceTo(a)
+    distance_ab = point_a.distanceTo(point_b)
+    distance_bc = point_b.distanceTo(point_c)
+    distance_ca = point_c.distanceTo(point_a)
 
-    return degrees(acos((AB*AB+BC*BC-CA*CA)/(2*AB*BC)))
-
-
-
-def distance_to_line(A,B,C):
-    """ return the distance of A to line BC"""
-    CA=C.distanceTo(A)
-    CB=C.distanceTo(B)
-    BA=B.distanceTo(A)
-
-    BH = (CA*CA-CB*CB-BA*BA)/(2*CB)
-    return sqrt(BA*BA-BH*BH)
+    return degrees(acos((distance_ab*distance_ab+distance_bc*distance_bc-distance_ca*distance_ca)/(2*distance_ab*distance_bc)))
 
 
+def distance_to_line(point_a, point_b, point_c):
+    """ return the distance of a to line bc"""
+    distance_ca = point_c.distanceTo(point_a)
+    distance_cb = point_c.distanceTo(point_b)
+    distance_ba = point_b.distanceTo(point_a)
 
-def iswithinLatLontTri(A, point1, point2):
-    """
-    Check whether this point is between two other points.
-    If this point is not on the great circle arc defined by both points,
-    return whether it is within the area bound by perpendiculars to the great
-    circle at each point (in the same hemispere).
-    """
-    a = LatLonsphericalNvector(A.lat,A.lon)
-    b = LatLonsphericalNvector(point1.lat,point1.lon)
-    c = LatLonsphericalNvector(point2.lat, point2.lon)
-    list = b, c
-#    return a.isenclosedBy(list)
-    return a.iswithin(b, c)
+    distance_bh = (distance_ca*distance_ca-distance_cb*distance_cb-distance_ba*distance_ba)/(2*distance_cb)
+    return sqrt(distance_ba*distance_ba-distance_bh*distance_bh)
 
 
 
-def onSegment(p, q, r):
+def on_segment(point_p, point_q, point_r):
     """ Given three collinear points p, q, r, the function checks if
     point q lies on line segment 'pr'
     """
-    if ( (q.lat <= max(p.lat, r.lat)) and (q.lat >= min(p.lat, r.lat)) and
-           (q.lon <= max(p.lon, r.lon)) and (q.lon >= min(p.lon, r.lon))):
+    if ((point_q.lat <= max(point_p.lat, point_r.lat)) and (point_q.lat >= min(point_p.lat, point_r.lat)) and
+            (point_q.lon <= max(point_p.lon, point_r.lon)) and (point_q.lon >= min(point_p.lon, point_r.lon))):
         return True
     return False
 
 
-def orientation_value(p, q, r):
-    val = (float(q.lon - p.lon) * (r.lat - q.lat)) - (float(q.lat - p.lat) * (r.lon - q.lon))
-    return val
+def orientation_value(point_p, point_q, point_r):
+    return (float(point_q.lon - point_p.lon) * (point_r.lat - point_q.lat)) - \
+        (float(point_q.lat - point_p.lat) * (point_r.lon - point_q.lon))
 
-def orientation(p, q, r):
+
+def orientation(point_p, point_q, point_r):
     # to find the orientation of an ordered triplet (p,q,r)
     # function returns the following values:
     # 0 : Collinear points
@@ -101,28 +80,31 @@ def orientation(p, q, r):
     # See https://www.geeksforgeeks.org/orientation-3-ordered-points/amp/
     # for details of below formula.
 
-    val = (float(q.lon - p.lon) * (r.lat - q.lat)) - (float(q.lat - p.lat) * (r.lon - q.lon))
+    val = (float(point_q.lon - point_p.lon) * (point_r.lat - point_q.lat)) - \
+        (float(point_q.lat - point_p.lat) * (point_r.lon - point_q.lon))
     if val > 0:
         # Clockwise orientation
         return 1
-    elif val < 0:
+    if val < 0:
         # Counterclockwise orientation
         return 2
-    else:
-        # Collinear orientation
-       # print('Collinear orientation ')
-        return 0
+    # Collinear orientation
+    # print('Collinear orientation ')
+    return 0
 
 # The main function that returns true if
 # the line segment 'p1q1' and 'p2q2' intersect.
 # false if Collinear
-def doIntersect(p1,q1,p2,q2):
+
+
+def do_intersect(point_p1, point_q1, point_p2, point_q2):
     """ Return intersection point of segments [p1 q1] and [p2 q2]
         if points are coolinear return False
         Antipode correction if needed
     """
 
-    if p1.isequalTo(p2,eps=0.000001)or p1.isequalTo(q2,eps=0.000001) or q1.isequalTo(p2,eps=0.000001) or q1.isequalTo(q2,eps=0.000001):
+    if point_p1.isequalTo(point_p2, eps=0.000001) or point_p1.isequalTo(point_q2, eps=0.000001)\
+    or point_q1.isequalTo(point_p2, eps=0.000001) or point_q1.isequalTo(point_q2, eps=0.000001):
         print("Same points")
         return False
 
@@ -133,152 +115,98 @@ def doIntersect(p1,q1,p2,q2):
     # print('type(q1) {}'.format(type(q1)))
     # print('type(p2) {}'.format(type(p2)))
     # print('type(q2) {}'.format(type(q2)))
-    o1 = orientation(p1, q1, p2)
-    o2 = orientation(p1, q1, q2)
-    o3 = orientation(p2, q2, p1)
-    o4 = orientation(p2, q2, q1)
-
+    point_o1 = orientation(point_p1, point_q1, point_p2)
+    point_o2 = orientation(point_p1, point_q1, point_q2)
+    point_o3 = orientation(point_p2, point_q2, point_p1)
+    point_o4 = orientation(point_p2, point_q2, point_q1)
 
     # General case
-    if ((o1 != o2) and (o3 != o4)):
-        inter = p1.intersection( q1,p2,q2)
+    if ((point_o1 != point_o2) and (point_o3 != point_o4)):
+        inter = point_p1.intersection(point_q1, point_p2, point_q2)
         # probleme d'antipode. Si le point d'intersection est à plus de 10000km, il y a un probleme
-        #if (inter.distanceTo(p1) > 10000)and (inter.distanceTo(p1) > 10000):
-            #inter= inter.antipode()
-        #return inter
-        if (inter.distanceTo(p1) > 10000)and (inter.distanceTo(q2) > 10000):
-            inter= inter.antipode()
+        # if (inter.distanceTo(p1) > 10000)and (inter.distanceTo(p1) > 10000):
+        #inter= inter.antipode()
+        # return inter
+        if (inter.distanceTo(point_p1) > 10000) and (inter.distanceTo(point_q2) > 10000):
+            inter = inter.antipode()
         return inter
 
     # Special Cases
     """
     # p1 , q1 and p2 are collinear and p2 lies on segment p1q1
-    if ((o1 == 0) and onSegment(p1, p2, q1)):
+    if ((o1 == 0) and on_segment(p1, p2, q1)):
         return True
  
     # p1 , q1 and q2 are collinear and q2 lies on segment p1q1
-    if ((o2 == 0) and onSegment(p1, q2, q1)):
+    if ((o2 == 0) and on_segment(p1, q2, q1)):
         return True
  
     # p2 , q2 and p1 are collinear and p1 lies on segment p2q2
-    if ((o3 == 0) and onSegment(p2, p1, q2)):
+    if ((o3 == 0) and on_segment(p2, p1, q2)):
         return True
  
     # p2 , q2 and q1 are collinear and q1 lies on segment p2q2
-    if ((o4 == 0) and onSegment(p2, q1, q2)):
+    if ((o4 == 0) and on_segment(p2, q1, q2)):
         return True
     """
     # If none of the cases
-    return False,False
-
+    return False, False
 
 
 def intersect_segments_list(new_vector, segments_list):
     # Returns true if new_vector intersec with one at least one of the segement
     # of the segment list
-    p1=new_vector[0]
-    q1=new_vector[1]
+    point_p1 = new_vector[0]
+    point_q1 = new_vector[1]
     for segment in reversed(segments_list):
-        p2=segment[0]
-        q2=segment[1]
-        inter = doIntersect(p1,q1,p2,q2)
-        segment = (p2 , q2)
+        point_p2 = segment[0]
+        point_q2 = segment[1]
+        inter = do_intersect(point_p1, point_q1, point_p2, point_q2)
+        segment = (point_p2, point_q2)
         if inter:
             #print('intersection avec {} {} {} {} et {} {} {} {}'.format(p1.lat,p1.lon,q1.lat,q1.lon,p2.lat,p2.lon,q2.lat,q2.lon))
-            return inter,segment
+            return inter, segment
 
-    return False,False
+    return False, False
 
 
-def intersect_four_points_latlon(A,B,C,D):
+def intersect_four_points_latlon(point_a, point_b, point_c, point_d):
     """
-    return the intersection point of the line AB and line CD
+    return the intersection point of the line ab and line cd
     """
 
-    f = A.intersection( B, C,D)
+    point_f = point_a.intersection(point_b, point_c, point_d)
     # probleme d'antipode. Si le point d'intersection est à plus de 10000km, il y a un probleme
-    if (f.distanceTo(A) > 10000)and (f.distanceTo(A) > 10000):
-        f= f.antipode()
+    if (point_f.distanceTo(point_a) > 10000) and (point_f.distanceTo(point_a) > 10000):
+        point_f = point_f.antipode()
 
-    return f
+    return point_f
 
-def intersect_points_bearings(A, bearing_A, B, bearing_B):
-    """ return the intersection point C of the two lines
-    from A with bearing_A to B with bearing_B
+
+def intersect_points_bearings(point_a, bearing_a, point_b, bearing_b):
+    """ return the intersection point c of the two lines
+    from point_a with bearing_a to point_b with bearing_b
     """
  ##   print('tmp {} bearing_tmp {} C {} bearing_C {}'.format(A, bearing_A, B, bearing_B))
-    a = LatLontri(A[0], A[1])
-    b = LatLontri(B[0], B[1])
+    point_a = LatLontri(point_a[0], point_a[1])
+    point_b = LatLontri(point_b[0], point_b[1])
 
-    c = a.intersection(bearing_A, b, bearing_B)
+    point_c = point_a.intersection(bearing_a, point_b, bearing_b)
 
-          # probleme d'antipode. Si le point d'intersection est à plus de 10000km, il y a un probleme
-    if (c.distanceTo(a) > 10000)and (c.distanceTo(a) > 10000):
-        c= c.antipode()
-    return [c.lat, c.lon]
+    # probleme d'antipode. Si le point d'intersection est à plus de 10000km, il y a un probleme
+    if (point_c.distanceTo(point_a) > 10000) and (point_c.distanceTo(point_a) > 10000):
+        point_c = point_c.antipode()
+    return [point_c.lat, point_c.lon]
 
-def intersect_points_bearings_latlon(A, bearing_A, B, bearing_B):
+
+def intersect_points_bearings_latlon(point_a, bearing_a, point_b, bearing_b):
     """ return the intersection point C of the two lines
-    from A with bearing_A to B with bearing_B
+    from a with bearing_a to b with bearing_b
     """
  ##   print('tmp {} bearing_tmp {} C {} bearing_C {}'.format(A, bearing_A, B, bearing_B))
-    c = A.intersection(bearing_A, B, bearing_B)
+    c_point = point_a.intersection(bearing_a, point_b, bearing_b)
 
-          # probleme d'antipode. Si le point d'intersection est à plus de 10000km, il y a un probleme
-    if (c.distanceTo(A) > 10000)and (c.distanceTo(A) > 10000):
-        c= c.antipode()
-    return c
-
-
-
-def main():
-    print(F'test_LatLontrigo2nvector() {test_LatLontrigo2nvector()}')
-
-    A = (48.844781966005414, 2.354806246580006)
-    B = (48.845476490908986, 2.3559582742434224)
-    C = (48.844800522139515, 2.356945151087957)
-    D = (48.84415592294359, 2.3565687535257593)
-    E = (48.84395753653702, 2.355015706155173)
-
-    A =LatLontri(48.844781966005414, 2.354806246580006)
-    B = LatLontri(48.845476490908986, 2.3559582742434224)
-    C = LatLontri(48.844800522139515, 2.356945151087957)
-    D = LatLontri(48.84415592294359, 2.3565687535257593)
-    E = LatLontri(48.84395753653702, 2.355015706155173)
-
-
-    p1= LatLontri(1, 1)
-    q1= LatLontri(10, 1)
-    p2= LatLontri(1, 2)
-    q2= LatLontri(10, 2)
-    doIntersect(p1,q1,p2,q2)
-
-    p1= LatLontri(10, 0)
-    q1= LatLontri(0, 10)
-    p2= LatLontri(0, 0)
-    q2= LatLontri(10, 10)
-    doIntersect(p1,q1,p2,q2)
-
-    p1= LatLontri(-5, -5)
-    q1= LatLontri(0, 0)
-    p2= LatLontri(1, 1)
-    q2= LatLontri(10, 10)
-    doIntersect(p1,q1,p2,q2)
-
-    p = np.array([0, 0])
-
-    a = np.array([[ 1,  1],
-                [-1,  0],
-                [-1, -1]])
-    b = np.array([[ 2,  2],
-                [ 1,  0],
-                [ 1, -1]])
-
-    p=LatLontri(0,0)
-    point_list=deque([LatLontri(1,1),LatLontri(2,2)])
-
-    #from IPython import embed; embed()
-
-
-if __name__ == '__main__':
-    main()
+    # probleme d'antipode. Si le point d'intersection est à plus de 10000km, il y a un probleme
+    if (c_point.distanceTo(point_a) > 10000) and (c_point.distanceTo(point_a) > 10000):
+        c_point = c_point.antipode()
+    return c_point
