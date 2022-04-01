@@ -13,4 +13,3 @@ Pitch angle is estimated for each orientation
 
 * If necessary, adding B/H ratio check between pairs of orientations
 * Making the algorithm faster (shifting the orientation to satisfy overlap is probably not the best idea)
-* Cases where a_col == b_col and a_row == b_row

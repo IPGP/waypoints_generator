@@ -13,6 +13,7 @@ from matplotlib import collections as mc
 import matplotlib.patches as mpatches
 import matplotlib.image as mpimg
 import pprint
+from scipy.spatial.transform import Rotation
 
 # Defines the successive positions (orientations) of the drone along one path,
 # to acquire images with a defined overlap ratio, from one image to the next.
@@ -174,6 +175,7 @@ class DroneOri(object):
         self._ovlp_linreg_stats = ovlp_linreg_stats
         self._final_overlap = final_overlap
         self._fixed_pitch = fixed_pitch
+        
         if self._ref_alti != 0:
             if self._takeoff_pt:
                 sys.exit("Error: ref_alti and takeoff_pt are incompatible "
@@ -182,6 +184,7 @@ class DroneOri(object):
                 print("Be careful when providing ref_alti: its vertical "
                     "reference must be the same as that of the DSM (e.g. the "
                     "ellipsoid or the geoid)")
+        
         self.read_dsm()
         self.compute_prof_az()
         self.compute_fov()
@@ -403,6 +406,7 @@ class DroneOri(object):
         """
         Extract ref_alti from the DSM at the coordinates of the takeoff point
         """
+        
         row = round((self._takeoff_pt[1] - self._top_left_n) / self._y_spacing)
         col = round((self._takeoff_pt[0] - self._top_left_e) / self._x_spacing)
         if row < 0 or col < 0:
@@ -415,8 +419,6 @@ class DroneOri(object):
         
         Populates self._profile -> list of (e, n, z) coordinates
         Horizontal distance between each point = the DSM GSD
-        
-        NOTE: !WE SHOULD ADD THE CASES WHERE a_col == b_col AND a_row == b_row!
         """
         
         self._profile = []
@@ -434,6 +436,19 @@ class DroneOri(object):
         a_row = (self._a_north - self._top_left_n) / self._y_spacing
         b_col = (self._b_east  - self._top_left_e) / self._x_spacing
         b_row = (self._b_north - self._top_left_n) / self._y_spacing
+        
+        # If azimuth is between -5 and +5° or 175 and 185°, work with a +90°
+        # rotation, to avoid extreme cases
+        prof_az_deg = degrees(self._prof_az)
+        if prof_az_deg == 0 or prof_az_deg < 5 or prof_az_deg > 355 or \
+                prof_az_deg > 175 and prof_az_deg < 185:
+            # DSM rotation
+            self._np_dsm = np.rot90(self._np_dsm, 3)
+            
+            # Point rotation
+            r = Rotation.from_euler('z', 90, degrees=True)
+            a_col, a_row, _ = r.apply([a_col, a_row, 0])
+            b_col, b_row, _ = r.apply([b_col, b_row, 0])
         
         # Change coordinate system: col, row -> x, y
         a_x = a_col
@@ -481,6 +496,19 @@ class DroneOri(object):
         
         # Nearest neighbour
         z_list = self._np_dsm[row_list.astype(np.int), col_list.astype(np.int)]
+        
+        # Cancel the rotation, if any
+        if prof_az_deg == 0 or prof_az_deg < 5 or prof_az_deg > 355 or \
+                prof_az_deg > 175 and prof_az_deg < 185:
+            # DSM rotation
+            self._np_dsm = np.rot90(self._np_dsm, 1)
+            
+            # Point rotation
+            coords = np.column_stack((col_list, row_list, # One array
+                np.zeros(col_list.shape[0])))
+            r = Rotation.from_euler('z', -90, degrees=True)
+            col_list, row_list, _ = np.hsplit(r.apply(coords), 3) # Rotation +
+                                                                  # split
         
         for coord in zip(col_list, row_list, z_list):
             e = coord[0] * self._x_spacing + self._top_left_e
@@ -1011,8 +1039,8 @@ class DroneOri(object):
         locs_for_lab = []
         for l in locs:
             locs_for_lab.append(round(l))
-            
-        ax.set_xticks(ax.get_xticks())  # just get and reset to prevent annoying bug
+        ax.set_xticks(ax.get_xticks())  # Just get and reset to prevent annoying
+                                        # bug
         labels = ax.set_xticklabels(locs_for_lab)
         x_a = self._dsm_profile_margin * self._x_spacing
         x_b = (len(prof_z) - self._dsm_profile_margin) * self._x_spacing
@@ -1072,7 +1100,7 @@ class DroneOri(object):
         fig.savefig('{}_orientations.svg'.format(self._name),
             bbox_inches='tight')
         plt.close()
-
+    
     def draw_map(self, shaded_dsm=None, make_subset=False, disp_dsm_prof=True,
             disp_drone_grd=True, disp_drone_pos=True, disp_takeoff_pt=True):
         """
@@ -1236,9 +1264,8 @@ class DroneOri(object):
         plt.tight_layout()
         
         fig.savefig('{}_map.svg'.format(self._name), bbox_inches='tight')
-
         plt.close()
-        
+    
     def export_ori(self):
         """
         Exports all orientation information
