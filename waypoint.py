@@ -88,7 +88,7 @@ class WayPoint:
         self.X3_latlon=self.point.destination(sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),360-angle + self.orientation)
         self.X3 = [self.X3_latlon.lat,self.X3_latlon.lon]
 
-def main(args):
+def main():
 
     lat = 48.84482270388685
     lon = 2.3562098704389163
