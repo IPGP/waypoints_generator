@@ -5,7 +5,9 @@ from classes.droneorientation import DroneOri
 
 # This script is to test droneorientation.py
 # Test data are RGE ALTI data, from IGN (https://geoservices.ign.fr/rgealti)
-# (be careful: those are DTMs, not DSMs, so trees do not appear, for example)
+# (Be careful: those are DTMs, not DSMs, so trees do not appear, for example.
+# Also, it might need to be corrected for the difference between the geoid and
+# the ellipsoid, depending on the situation.)
 
 # Example1: fixed pitch, with the drone shooting backwards (fixed_pitch
 # positive)
