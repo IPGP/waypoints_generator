@@ -1,64 +1,59 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 from math import atan, degrees, sqrt
-import folium
-from gpxplotter import create_folium_map
-from geopy import Point, distance
-import geopy
-import sys
-from pygeodesy.dms import lonDMS
-from pygeodesy.units import Lat
-from utils import *
-from pygeodesy.sphericalTrigonometry import LatLon 
+from pygeodesy.sphericalTrigonometry import LatLon
+from pygeodesy.sphericalNvector import LatLon as LatLonS
+from utils import do_intersect
 
 
 class WayPoint:
     "Waypoint class"
 
-    def __init__(self, point, orientation, lateral_footprint=100, longitudinal_footprint=50,wp_text=''):
-        
+    def __init__(self, lat, lon, orientation=None,
+                 lateral_footprint=0, longitudinal_footprint=0, wp_text='', alt=None):
+
         # point is a latlontri
-        self.point = point
-        self.latitude = self.point.lat
-        self.longitude = self.point.lon
-        self.location = [self.point.lat,self.point.lon]
+        self.latlon = LatLon(lat, lon)
+        self.latlons = LatLonS(lat, lon)
+        self.latitude = lat
+        self.longitude = lon
+        self.lat = lat
+        self.lon = lon
+        self.location = [lat, lon]
         self.altitude_absolue_sol = None
-        self.altitude_relative_drone = None
-        self.text=str(wp_text)
-        if len(self.text)>0:
-            self.text=self.text+' '
+        self.altitude_relative_drone = alt
+        self.text = str(wp_text)
+        if len(self.text) > 0:
+            self.text = self.text+' '
         # self.hauteur_sol
         self.lateral_footprint = lateral_footprint  # en mètres
         self.longitudinal_footprint = longitudinal_footprint  # en mètres
         self.orientation = orientation
-        if self.lateral_footprint != 0 and self.longitudinal_footprint != 0 :
+        if self.lateral_footprint != 0 and self.longitudinal_footprint != 0:
             self.emprise_coordinates()
-        
+
     def __str__(self):
-        return ('[{} {}]'.format(self.latitude, self.longitude))
+        return F"[{self.latitude} {self.longitude}]"
 
     def latlon(self):
         return (self.latitude, self.longitude)
 
-    def footprint_intersection(self,waypoint_2,isclockwise):
+    def footprint_intersection(self, waypoint_2, isclockwise):
         """
         Return intersection point of two waypoint footprints
         left intersection is isclockwise
         right intersection if is not isclockwise
         """
-        
-      #  print('WP1 {}  WP2  {}'.format(self.__str__(),waypoint_2.__str__()))
-#        print('WP1 {} {} WP2 {} {}'.format(self.lat,self.lon,waypoint_2.lat,waypoint_2.lon))
+
         if isclockwise:
-           # print( ' self.X0 {} self.X1 {} waypoint_2.X0 {} waypoint_2.X1 {}'.format(self.X0,self.X1,waypoint_2.X0,waypoint_2.X1))
-            return do_intersect(self.X0_latlon,self.X1_latlon,waypoint_2.X0_latlon,waypoint_2.X1_latlon)
-        else:
-           # print( ' self.X2 {} self.X3 {} waypoint_2.X2 {} waypoint_2.X3 {}'.format(self.X2,self.X3,waypoint_2.X2,waypoint_2.X3))
-            return do_intersect(self.X2_latlon,self.X3_latlon,waypoint_2.X2_latlon,waypoint_2.X3_latlon)
-        
+            return do_intersect(self.x0_latlon, self.x1_latlon,
+                                waypoint_2.X0_latlon, waypoint_2.X1_latlon)
+        return do_intersect(self.x2_latlon, self.x3_latlon,
+                                waypoint_2.X2_latlon, waypoint_2.X3_latlon)
 
     def emprise_coordinates(self):
-        """Détermine les coordonnées de l'emprise au sol à partir du point central, de l'orientation et des emprises
+        """Détermine les coordonnées de l'emprise au sol à partir
+        du point central, de l'orientation et des emprises
                    5 | 5
         x3,y3 ---------------- x0,y0
             |                 |
@@ -70,32 +65,25 @@ class WayPoint:
         x2,y2 ---------------- x1,y1
 
         """
-        
+
         self.delta_lat = self.lateral_footprint / 2
         self.delta_long = self.longitudinal_footprint / 2
 
         angle = degrees(atan(self.delta_lat/self.delta_long))
-    
-        self.X0_latlon = self.point.destination(sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),angle + self.orientation)
-        self.X0 = [self.X0_latlon.lat,self.X0_latlon.lon]
 
-        self.X1_latlon =  self.point.destination(sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),180-angle + self.orientation)
-        self.X1 = [self.X1_latlon.lat,self.X1_latlon.lon]
+        self.x0_latlon = self.latlons.destination(sqrt(
+            self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),
+            angle + self.orientation)
+        self.x0 = [self.x0_latlon.lat, self.x0_latlon.lon]
 
-        self.X2_latlon = self.point.destination( sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),180+angle + self.orientation)
-        self.X2 = [self.X2_latlon.lat,self.X2_latlon.lon]
+        self.x1_latlon = self.latlons.destination(sqrt(
+            self.delta_lat * self.delta_lat+self.delta_long * self.delta_long), 180-angle + self.orientation)
+        self.x1 = [self.x1_latlon.lat, self.x1_latlon.lon]
 
-        self.X3_latlon=self.point.destination(sqrt(self.delta_lat * self.delta_lat+self.delta_long * self.delta_long),360-angle + self.orientation)
-        self.X3 = [self.X3_latlon.lat,self.X3_latlon.lon]
+        self.x2_latlon = self.latlons.destination(sqrt(
+            self.delta_lat * self.delta_lat+self.delta_long * self.delta_long), 180+angle + self.orientation)
+        self.x2 = [self.x2_latlon.lat, self.x2_latlon.lon]
 
-def main():
-
-    lat = 48.84482270388685
-    lon = 2.3562098704389163
-
-    IPGP = WayPoint(LatLon(lat, lon),90)
-    print('X0 {} X1 {} X2 {} X3 {}'.format(IPGP.X0,IPGP.X1,IPGP.X2,IPGP.X3))
-
-
-if __name__ == '__main__':
-    main(sys.argv)
+        self.x3_latlon = self.latlons.destination(sqrt(
+            self.delta_lat * self.delta_lat+self.delta_long * self.delta_long), 360-angle + self.orientation)
+        self.x3 = [self.x3_latlon.lat, self.x3_latlon.lon]

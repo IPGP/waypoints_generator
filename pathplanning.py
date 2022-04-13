@@ -13,7 +13,7 @@ from pygeodesy.sphericalTrigonometry import LatLon
 from pygeodesy.sphericalNvector import intersection, LatLon as LatLonS
 from pygeodesy.points import isclockwise, isconvex, centroidOf
 from pyproj import Transformer
-from utils import get_angle_latlon,background_foreground_color, background_color, foreground_color
+from utils import get_angle_wp,background_foreground_color, background_color, foreground_color
 from waypoint import WayPoint
 from waypointsmap import WaypointMap
 from dict2djikml import dict2djikml
@@ -45,9 +45,6 @@ class PathPlanning:
 
         self.points = points
         # All the points in LatLonS for reference
-        self.points_latlon_s = []
-        for point in self.points:
-            self.points_latlon_s.append(LatLonS(point.lat, point.lon))
 
         self.centroid_latlon_s = centroidOf(self.points, LatLon=LatLonS)
         self.centroid_latlon = centroidOf(self.points, LatLon=LatLon)
@@ -204,10 +201,10 @@ class PathPlanning:
         preceding_point = input_points[-1]
         while i < len(input_points):
             this_point, next_point = next_point, next(point_cycle)
-            this_point.angle = get_angle_latlon(
+            this_point.angle = get_angle_wp(
                 preceding_point, this_point, next_point)
-            this_point.bearing = this_point.compassAngleTo(next_point)
-            this_point.l = this_point.distanceTo(next_point)
+            this_point.bearing = this_point.latlon.compassAngleTo(next_point.latlon)
+            this_point.l = this_point.latlon.distanceTo(next_point.latlon)
             preceding_point = this_point
             i += 1
 
@@ -222,9 +219,9 @@ class PathPlanning:
         projection_point = None
 
         ###
-        for point in self.points_latlon_s:
+        for point in self.points:
             intersection_point = intersection(
-                point, self.bearing, self.centroid_latlon_s, self.bearing+90)
+                point.latlons, self.bearing, self.centroid_latlon_s, self.bearing+90)
             distance_to_centroid = intersection_point.distanceTo(
                 self.centroid_latlon_s)
 
@@ -262,7 +259,7 @@ class PathPlanning:
         # We search until we do not have intersections points between
         # parralle lines to bearing with increasing distance from ref_point
         while intersection_exist:
-            new_point = ref_point.destination(
+            new_point = ref_point.latlon.destination(
                 i*self.increment_lat, direction_to_centroid)
             new_point_latlon_s = LatLonS(new_point.lat, new_point.lon)
             new_point_latlon_s.text = "nw_pt "+str(i)
@@ -315,19 +312,19 @@ class PathPlanning:
 
         for i in range(0, len(intersection_list)-1, 2):
             if flip_left_right:
-                self.waypoint_list.append(WayPoint(intersection_list[i], self.bearing,
+                self.waypoint_list.append(WayPoint(intersection_list[i].lat,intersection_list[i].lon, self.bearing,
                                           lateral_footprint=self.lateral_footprint,
                                           longitudinal_footprint=self.longitudinal_footprint))
-                self.waypoint_list.append(WayPoint(intersection_list[i+1], self.bearing,
+                self.waypoint_list.append(WayPoint(intersection_list[i+1].lat,intersection_list[i+1].lon, self.bearing,
                                           lateral_footprint=self.lateral_footprint,
                                           longitudinal_footprint=self.longitudinal_footprint))
                 self.paired_waypoints_list.append([[intersection_list[i].lat, intersection_list[i].lon], [
                                                   intersection_list[i+1].lat, intersection_list[i+1].lon]])
             else:
-                self.waypoint_list.append(WayPoint(intersection_list[i+1], self.bearing+180,
+                self.waypoint_list.append(WayPoint(intersection_list[i+1].lat,intersection_list[i+1].lon, self.bearing+180,
                                           lateral_footprint=self.lateral_footprint,
                                           longitudinal_footprint=self.longitudinal_footprint))
-                self.waypoint_list.append(WayPoint(intersection_list[i], self.bearing+180,
+                self.waypoint_list.append(WayPoint(intersection_list[i].lat,intersection_list[i].lon, self.bearing+180,
                                           lateral_footprint=self.lateral_footprint,
                                           longitudinal_footprint=self.longitudinal_footprint))
                 self.paired_waypoints_list.append([[intersection_list[i+1].lat, intersection_list[i+1].lon], [
@@ -347,13 +344,14 @@ class PathPlanning:
         tmp_point = self.start_point
 
         for waypoint in self.waypoint_list:
-            #print('type(waypoint) {} type(tmp_point) {}'.format(waypoint,type(tmp_point)))
-            total_distance += tmp_point.distanceTo(
-                LatLon(waypoint.point.lat, waypoint.point.lon))
-            tmp_point = LatLon(waypoint.point.lat, waypoint.point.lon)
+            #print(f"type(waypoint) {type(waypoint)} type(tmp_point) {type(tmp_point)} waypoint {waypoint} waypoint {waypoint.lat}")
+
+            total_distance += tmp_point.latlon.distanceTo(waypoint.latlon)
+
+            tmp_point = waypoint
             nb_turns += 1
 
-        total_distance += tmp_point.distanceTo(self.start_point)
+        total_distance += tmp_point.latlon.distanceTo(self.start_point.latlon)
 
       #  print('############################################################')
      #   print('{} Total distance is {}m with {} turns'.format(self.style, total_distance, nb_turns))
@@ -375,6 +373,8 @@ class PathPlanning:
 
 
 def main():
+
+    ################## ARG PARSER ######################################
     arg_parser = ArgumentParser(prog='Waypoints Generator',
                                 description='Create waypoints from mnt with terrain awareness',
                                 formatter_class=ArgumentDefaultsHelpFormatter)
@@ -392,7 +392,8 @@ def main():
     else:
         print(F'{args.config_file} does not exist or wrong path')
         sys.exit(-1)
-
+    ####################################################################
+    ################## INI PARSER ######################################
     # PROJECT
     # name
     project_name = parser.get("project", "name")
@@ -401,19 +402,17 @@ def main():
         sys.exit(-1)
 
     # shape points
-    points = deque()
+    shape_points = deque()
     points_list = parser.get("project", "points_list")
     for point in literal_eval(points_list):
-        points.append(LatLon(point[0], point[1]))
+        shape_points.append(WayPoint(point[0], point[1],lateral_footprint=0,longitudinal_footprint=0,alt=0))
 
     # start point
     takeoff_point = None
     takeoff_altitude = None
 
     takeoff_lat,takeoff_lon=literal_eval(parser.get("project","takeoff_point"))
-    takeoff_point = LatLon(takeoff_lat,takeoff_lon)
-    takeoff_point.text = 'Takeoff Point'
-    takeoff_point.alt="0"
+    takeoff_point = WayPoint(takeoff_lat,takeoff_lon, wp_text = 'Takeoff Point', alt=0)
     if 'takeoff_altitude' in parser['project']:
         takeoff_altitude = float(parser.get("project", "takeoff_altitude"))
 
@@ -450,6 +449,7 @@ def main():
         sys.exit(-1)
 
     epsg_mnt = parser.get("MNT", "epsg_mnt")
+    ####################################################################
 
     # a calculer a partir du dico JSON
     # Available data
@@ -472,7 +472,7 @@ def main():
     print(foreground_color(F'lateral_footprint: {lateral_footprint}m\tlongitudinal_footprint {longitudinal_footprint}m', 14))
     print(foreground_color(F'lateral_gsd: {lateral_footprint/camera.camera_resolution_x:.5f}m\tlongitudinal_gsd {longitudinal_footprint/camera.camera_resolution_y:.5f}m', 14))
 
-    path_generator = PathPlanning(points=points,  bearing=drone_azimuth, lateral_footprint=lateral_footprint,
+    path_generator = PathPlanning(points=shape_points,  bearing=drone_azimuth, lateral_footprint=lateral_footprint,
                                   longitudinal_footprint=longitudinal_footprint, start_point=takeoff_point, percent_recouvrement_lat=side_overlap, percent_recouvrement_lon=front_overlap)
 
     path_generator.extra_point.append(takeoff_point)
@@ -567,8 +567,8 @@ def main():
     # Create the map
     the_map = WaypointMap(takeoff_point)
     # Zone boundaries
-    the_map.add_polygon(points=points, color='#ff7800', fill=True,
-                        fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
+    the_map.add_polygon(points=shape_points, color='#ff7800',
+                        fill_color='#ffff00', fill_opacity=0.2, popup="")
 
     # waypoints to the map
     for waypoint in path_generator.waypoint_list:
@@ -584,7 +584,8 @@ def main():
         if DEBUG:
             print('extra text '+extra.text + '\t\tExtra point\t' +
                   str(extra.lat) + '\t'+str(extra.lon))
-        the_map.add_extra(extra, text=extra.text, alt=extra.alt)
+        #print(F"{extra} {extra.text}")
+        the_map.add_extra(extra, text=extra.text, alt=extra.altitude_relative_drone)
 
     # Export html map
     the_map.export_to_file(project_name)

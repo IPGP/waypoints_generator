@@ -33,12 +33,12 @@ def get_angle(point_a, point_b, point_c):
     return degrees(acos((distance_ab*distance_ab+distance_bc*distance_bc-distance_ca*distance_ca)/(2*distance_ab*distance_bc)))
 
 
-def get_angle_latlon(point_a, point_b, point_c):
+def get_angle_wp(point_a, point_b, point_c):
     "return angle en degrees between Latlon A,B and C in degrees"
 
-    distance_ab = point_a.distanceTo(point_b)
-    distance_bc = point_b.distanceTo(point_c)
-    distance_ca = point_c.distanceTo(point_a)
+    distance_ab = point_a.latlon.distanceTo(point_b.latlon)
+    distance_bc = point_b.latlon.distanceTo(point_c.latlon)
+    distance_ca = point_c.latlon.distanceTo(point_a.latlon)
 
     return degrees(acos((distance_ab*distance_ab+distance_bc*distance_bc-distance_ca*distance_ca)/(2*distance_ab*distance_bc)))
 
