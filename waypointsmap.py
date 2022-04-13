@@ -104,9 +104,14 @@ class WaypointMap:
 
         icon_black = folium.features.CustomIcon(
             icon_image=self.WP_icon_path_black_path, icon_size=(25, 25))
+        #from IPython import embed; embed()
 
-        folium.Marker(location=waypoint.location, tooltip=str(waypoint.text)+ str( 
-            self.waypoint_nb-1)+"<br>"+str(waypoint.location[0])+"<br>"+str(waypoint.location[1]), icon=icon_black).add_to(self.the_map)
+        tooltip_string=F"{waypoint.text}<br>alt : {self.waypoint_nb-1}<br>lat : {waypoint.location[0]}<br>lon : {waypoint.location[1]}"
+
+        folium.Marker(location=waypoint.location, tooltip=tooltip_string, icon=icon_black).add_to(self.the_map)
+
+        #folium.Marker(location=waypoint.location, tooltip=str(waypoint.text)+ str( 
+        #    self.waypoint_nb-1)+"<br>"+str(waypoint.location[0])+"<br>"+str(waypoint.location[1]), icon=icon_black).add_to(self.the_map)
 
         # Les markers de l'emprise
         if footprint_markers:
@@ -123,15 +128,14 @@ class WaypointMap:
             folium.Marker(location=waypoint.X3, tooltip='X3'+"<br>"+str(waypoint.X3),icon=folium.Icon(
                 color='red', icon='fa-map-pin')).add_to(self.the_map)
 
-    def add_extra(self, waypoint, text=None):
+    def add_extra(self, waypoint, text=None, alt=None):
         """ add extra points to the map. for debug purpose"""
 
         #from IPython import embed; embed()
 
         icon_red = folium.features.CustomIcon(icon_image=self.WP_icon_path_dot_circle, icon_size=(15, 15))
-
-        folium.Marker(location=[waypoint.lat,waypoint.lon], 
-        tooltip=text+"<br>"+str(waypoint.lat)+"<br>"+str(waypoint.lon), icon=icon_red).add_to(self.the_map)
+        tooltip_string=F"{text}<br>alt : {alt}<br>lat : {waypoint.lat} <br> lon : {waypoint.lon}"
+        folium.Marker(location=[waypoint.lat,waypoint.lon], tooltip=tooltip_string, icon=icon_red).add_to(self.the_map)
 
        
     def add_polygon(self, points, color, fill_color, fill_opacity, weight, popup, fill=True):
@@ -148,7 +152,9 @@ class WaypointMap:
         for point in points:
           #  print('point {} nb {}'.format( point, nb))
 
-            folium.Marker(location=[point.lat,point.lon], tooltip=str(nb)+"<br>"+str(point.lat)+"<br>"+str(point.lon),
+            tooltip_string=F"{nb}<br>lat : {point.lat}<br>lon : {point.lon}"
+
+            folium.Marker(location=[point.lat,point.lon], tooltip=tooltip_string,
                           icon=folium.Icon(color='blue', icon="circle", prefix='fa')).add_to(self.the_map)
             nb += 1
 
@@ -166,7 +172,7 @@ class WaypointMap:
             self.waypoint_nb +=1
             list_waypoints = [[self.startpoint.lat,self.startpoint.lon]]
             icon_star = folium.features.CustomIcon(icon_image=self.start_icon_path, icon_size=(40, 40))
-            folium.Marker(location=(self.startpoint.lat,self.startpoint.lon), tooltip='Start'+"<br>"+str(self.startpoint.lat)+"<br>"+str(self.startpoint.lon), icon=icon_star).add_to(self.the_map)
+            folium.Marker(location=(self.startpoint.lat,self.startpoint.lon), tooltip=F"Start<br>{self.startpoint.lat}<br>{self.startpoint.lon}", icon=icon_star).add_to(self.the_map)
         else:
             list_waypoints = []
         for waypoint in waypoints_list:
@@ -188,7 +194,7 @@ class WaypointMap:
 
     def export_to_file(self, filename):
         """Export waypoint map to file"""
-        if filename:filename+='.html'
+        filename+='.html'
         #print('{} waypoint exportés'.format(self.waypoint_nb))
 
         self.the_map.fit_bounds(self.the_map.get_bounds(), padding=(5, 5))

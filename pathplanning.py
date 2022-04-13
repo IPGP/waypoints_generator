@@ -240,6 +240,7 @@ class PathPlanning:
                     intersection_point.lat, intersection_point.lon)
 
         ref_point.text = 'ref point'
+        ref_point.alt=""
         # print(F"Pouf\t{time.time_ns()-self.start_time}")
 
         # rotate the summits to have self.points[0] == ref_point
@@ -265,6 +266,7 @@ class PathPlanning:
                 i*self.increment_lat, direction_to_centroid)
             new_point_latlon_s = LatLonS(new_point.lat, new_point.lon)
             new_point_latlon_s.text = "nw_pt "+str(i)
+            new_point_latlon_s.alt=""
             # self.extra_point.append(new_point_latlon_s)
 
             intersection_exist = False
@@ -394,6 +396,9 @@ def main():
     # PROJECT
     # name
     project_name = parser.get("project", "name")
+    if not project_name:
+        print(F'Project needs a name in {args.config_file}')
+        sys.exit(-1)
 
     # shape points
     points = deque()
@@ -408,6 +413,7 @@ def main():
     takeoff_lat,takeoff_lon=literal_eval(parser.get("project","takeoff_point"))
     takeoff_point = LatLon(takeoff_lat,takeoff_lon)
     takeoff_point.text = 'Takeoff Point'
+    takeoff_point.alt="0"
     if 'takeoff_altitude' in parser['project']:
         takeoff_altitude = float(parser.get("project", "takeoff_altitude"))
 
@@ -558,13 +564,13 @@ def main():
     for extra_waypoint in wp_extras:
         path_generator.extra_point.append(extra_waypoint)
 
-    # export map
+    # Create the map
     the_map = WaypointMap(takeoff_point)
-    # on place les limites de la zone
+    # Zone boundaries
     the_map.add_polygon(points=points, color='#ff7800', fill=True,
                         fill_color='#ffff00', fill_opacity=0.2, weight=2, popup="")
 
-    # On ajoute les waypoint qui ont été trouvés a la carte
+    # waypoints to the map
     for waypoint in path_generator.waypoint_list:
         the_map.add_waypoint(waypoint, direction=False,
                              footprint=False, footprint_markers=False)
@@ -578,7 +584,7 @@ def main():
         if DEBUG:
             print('extra text '+extra.text + '\t\tExtra point\t' +
                   str(extra.lat) + '\t'+str(extra.lon))
-        the_map.add_extra(extra, text=extra.text)
+        the_map.add_extra(extra, text=extra.text, alt=extra.alt)
 
     # Export html map
     the_map.export_to_file(project_name)
