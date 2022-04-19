@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import sys
 from tempfile import mkstemp
 from shutil import move, copymode
 
@@ -16,31 +17,56 @@ args = parser.parse_args()
 
 DEBUG = False
 NEXT_LINE_IS_COORDINATES = False
+CLEARANCE_SOURCE = True
 
 while line := args.in_kml_file.readline():
-    if "<coordinates>" in line:
+
+    if "https://earth.google.com" in line:
+        CLEARANCE_SOURCE = False
+
+    if "<coordinates>" in line and CLEARANCE_SOURCE is False :
         NEXT_LINE_IS_COORDINATES = True
 
-    if NEXT_LINE_IS_COORDINATES:
+    if "<coordinates>" in line and "Polygon" in line and CLEARANCE_SOURCE  :
+        coordinates = line
+
+    if NEXT_LINE_IS_COORDINATES and CLEARANCE_SOURCE is False :
         line = args.in_kml_file.readline()
         coordinates = line
         NEXT_LINE_IS_COORDINATES = False
 
+#from IPython import embed; embed()
+
 # removing leading and trailing spaces
 coordinates_string = coordinates.lstrip().rstrip()
 
-# split each point
-coordinates_tab = coordinates_string.split(" ")
-nb_of_coordinates = len(coordinates_tab)
+if CLEARANCE_SOURCE :
+    # split each point
+    coordinates_tab = coordinates_string.split('>')[5].split('<')[0].split(" ")
+    nb_of_coordinates = len(coordinates_tab)
 
+else :
+    # split each point
+    coordinates_tab = coordinates_string.split(" ")
+    nb_of_coordinates = len(coordinates_tab)
+
+nb_of_points=0
 final_string = 'points_list =['
+
+
+
 for i in range(nb_of_coordinates-1):
+    nb_of_points+=1
+
     coordinate = coordinates_tab[i]
     lon, lat, alt = coordinate.split(',')
     if DEBUG:
         print(f'lat {lat} lon {lon} alt {alt}')
     final_string += f'({lat},{lon}),'
 
+if nb_of_points == 0:
+    print(F'No points found in file : {args.in_kml_file.name}')
+    sys.exit(-1)
 # end of coordinates
 # strip last coma
 final_string = final_string[:-1]
