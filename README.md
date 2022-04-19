@@ -5,6 +5,9 @@ pip install -r requirements.txt
 
 # Preparing the data
 ## Generate kml of the area
+### Clearance
+Détails de la mission => Outils (capture d'écran, dossier mission...=>  Exporter la zone de vol au format Google Earth (KML)
+### Google Earth
 * In [Google Earth](https://earth.google.com/web/) click the <img src="img/google_earth_project.png" width="30"/>
 * Click "New project" and select "Create a KML file" or "Create in Google Drive"
 * Click "New element" and "Draw a line or shape"

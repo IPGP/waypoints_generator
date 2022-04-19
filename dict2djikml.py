@@ -1,6 +1,5 @@
 from string import Template
 import sys
-#from pygeodesy.sphericalNvector  import intersection, LatLon as LatLonS
 from waypoint import WayPoint
 
 

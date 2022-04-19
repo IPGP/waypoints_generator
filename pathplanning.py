@@ -98,6 +98,7 @@ class PathPlanning:
         best_angle_nb_turns = None
         best_path_nb_turns = None
 
+        angles_array = []
         turns_array = []
         distances_array = []
 
@@ -128,6 +129,7 @@ class PathPlanning:
             tmp_length, tmp_nb_turns = self.compute_length_and_turns()
             turns_array.append(tmp_nb_turns)
             distances_array.append(tmp_length)
+            angles_array.append(angle)
 
             if not best_path_nb_turns:
                 best_path_nb_turns = self
@@ -154,12 +156,32 @@ class PathPlanning:
             #    break
 
         print('#######################')
-        print(F'Distance : Angle {best_angle_distance} \
+        print(F'Min Distance : Angle {best_angle_distance} \
                 distance {best_distance} nb_turns {best_distance_nb_turns}')
-        print(F'Nb Turns : Angle {best_angle_nb_turns} \
+        print(F'Min Turns : Angle {best_angle_nb_turns} \
                 distance {best_nb_turns_distance} nb_turns {best_nb_turns}')
         print('#######################')
+        
+        # To plot angle / distance / turns
+        # import matplotlib.pyplot as plt
+        # fig, ax = plt.subplots()
 
+        # color = 'tab:red'
+        # ax.set_xlabel('time (s)')
+        # ax.set_ylabel('turns', color=color)
+        # line1, = ax.plot(turns_array, color=color)
+        # ax.tick_params(axis='y', labelcolor=color)
+
+        # ax2 = ax.twinx()
+
+        # color = 'tab:blue'
+        # ax2.set_ylabel('distances', color=color)  # we already handled the x-label with ax1
+        # ax2.plot(distances_array,  color=color)
+        # ax2.tick_params(axis='y', labelcolor=color)
+        # ax.legend()
+        # plt.savefig('sapine_10_turns_distances.png')
+        # #from IPython import embed; embed()
+        # sys.exit()
         # If same nb_of_turns, return shortest distance
         if best_nb_turns == best_distance_nb_turns:
             return best_angle_distance
@@ -177,8 +199,8 @@ class PathPlanning:
         next_point = next(point_cycle)
         while i < self.nb_points:
             this_point, next_point = next_point, next(point_cycle)
-            self.area_segments.append(
-                [LatLonS(this_point.lat, this_point.lon), LatLonS(next_point.lat, next_point.lon)])
+            #self.area_segments.append([LatLonS(this_point.lat, this_point.lon), LatLonS(next_point.lat, next_point.lon)])
+            self.area_segments.append([this_point.latlons, next_point.latlons])
             i += 1
 
         # print(F"Init\t{time.time_ns()-self.start_time}")
@@ -238,7 +260,6 @@ class PathPlanning:
 
         ref_point.text = 'ref point'
         ref_point.alt=""
-        # print(F"Pouf\t{time.time_ns()-self.start_time}")
 
         # rotate the summits to have self.points[0] == ref_point
         while self.points[0].lat != ref_point.lat and self.points[0].lon != ref_point.lon:
@@ -479,8 +500,7 @@ def main():
     path_generator.generate_path_normal_plus()
 
 
-#    for paire in path_generator.export_to_paired_wp():
-#        print(paire)
+
 
     ################### Profils ##########################
 
