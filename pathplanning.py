@@ -560,6 +560,8 @@ def main():
             # Add waypoints to main dict
             final_waypoint_dict += prof1.export_ori()
 
+    print(f"Nb de photos : {len(final_waypoint_dict)}")
+
     if takeoff_altitude:
         print(
             background_color(F"\U0001f449 L'altitude de décollage utilisée est {prof1.ref_alti:.0f} m.\
