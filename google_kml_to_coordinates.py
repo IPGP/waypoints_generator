@@ -17,12 +17,12 @@ args = parser.parse_args()
 DEBUG = False
 NEXT_LINE_IS_COORDINATES = False
 
-while line := args.infile.readline():
+while line := args.in_kml_file.readline():
     if "<coordinates>" in line:
         NEXT_LINE_IS_COORDINATES = True
 
     if NEXT_LINE_IS_COORDINATES:
-        line = args.infile.readline()
+        line = args.in_kml_file.readline()
         coordinates = line
         NEXT_LINE_IS_COORDINATES = False
 
