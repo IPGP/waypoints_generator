@@ -4,6 +4,7 @@ import os
 import sys
 from tempfile import mkstemp
 from shutil import move, copymode
+from lxml import etree
 
 
 parser = argparse.ArgumentParser(
@@ -16,45 +17,26 @@ parser.add_argument('--out_ini_file', '-o', required=False,
 args = parser.parse_args()
 
 DEBUG = False
-NEXT_LINE_IS_COORDINATES = False
-CLEARANCE_SOURCE = True
 
-while line := args.in_kml_file.readline():
+tree = etree.parse(args.in_kml_file)
+root = tree.getroot()
+raw_coordinates = root.find('.//coordinates',root.nsmap).text 
 
-    if "https://earth.google.com" in line:
-        CLEARANCE_SOURCE = False
-
-    if "<coordinates>" in line and CLEARANCE_SOURCE is False :
-        NEXT_LINE_IS_COORDINATES = True
-
-    if "<coordinates>" in line and "Polygon" in line and CLEARANCE_SOURCE  :
-        coordinates = line
-
-    if NEXT_LINE_IS_COORDINATES and CLEARANCE_SOURCE is False :
-        line = args.in_kml_file.readline()
-        coordinates = line
-        NEXT_LINE_IS_COORDINATES = False
+#Clean string from google
+# ie remove \n and \t and maybe trailing space
+coordinates_string = raw_coordinates.replace('\n','').replace('\t','').strip()
 
 #from IPython import embed; embed()
 
-# removing leading and trailing spaces
-coordinates_string = coordinates.lstrip().rstrip()
+coordinates_tab = coordinates_string.split(" ")
+nb_of_coordinates = len(coordinates_tab)
 
-if CLEARANCE_SOURCE :
-    # split each point
-    coordinates_tab = coordinates_string.split('>')[5].split('<')[0].split(" ")
-    nb_of_coordinates = len(coordinates_tab)
-
-else :
-    # split each point
-    coordinates_tab = coordinates_string.split(" ")
-    nb_of_coordinates = len(coordinates_tab)
 
 nb_of_points=0
 final_string = 'points_list =['
 
 
-
+# -1 because the last point of the Polygon is also the first point
 for i in range(nb_of_coordinates-1):
     nb_of_points+=1
 
