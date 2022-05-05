@@ -61,6 +61,7 @@ class DroneOri(object):
                                 account
         add_ori             Adds an orientation along the profile, at the given
                                 index
+        remove_ori          Removes an orientation
         estim_overlp        Estimates the overlap ratio between two images
         estim_b_on_h        Estimates the B/H ratio between two images
         insert_ori          Inserts an orientation between two orientations
@@ -515,18 +516,18 @@ class DroneOri(object):
             n = coord[1] * self._y_spacing + self._top_left_n
             self._profile.append({'e':e, 'n':n, 'z':coord[2]})
     
-    def find_ori(self, index, locked=False):
+    def find_ori(self, index):
         """
         Finds the gimbal pitch angle of the drone and its azimuth for the
         current position
         
-        By position, the position "on the ground" is meant. Next need to apply
-        the desired (fixed) height from the ground (vertical or not, depending
-        on the pitch), from this position. This is done by apply_height().
+        By position, the position "on the ground" is meant. Next we need to
+        apply the desired (fixed) height from the ground (vertical or not,
+        depending on the pitch), from this position. This is done by
+        apply_height().
         
         Input:
             index           [int] index of the current position in self._profile
-            locked          [bool] wether this orientation can be moved or not
         
         Output:
             index           [int] same as the input
@@ -538,7 +539,6 @@ class DroneOri(object):
                                 direction
             footp_i_start   [int] index of the beginning of the footprint
             footp_i_end     [int] index of the end of the footprint
-            locked          [bool] same as the input
         """
         
         # To estimate the pitch, we need to evaluate the mean slope of the zone
@@ -549,7 +549,7 @@ class DroneOri(object):
         # the image will encompass.
         ########
         # TODO
-        # Maybe it is a good idea to limit the pitch values, so that it is not
+        # Maybe it is a good idea to limit the pitch value, so that it is not
         # too far from nadir?
         ########
         inc = 1
@@ -601,11 +601,9 @@ class DroneOri(object):
                 'drone_az':         drone_az,
                 'footp_i_start':    footp_i_start,
                 'footp_i_end':      footp_i_end,
-                'locked':           locked
             }
     
-    def apply_height(self, index, pitch, drone_az, footp_i_start, footp_i_end,
-            locked):
+    def apply_height(self, index, pitch, drone_az, footp_i_start, footp_i_end):
         """
         Applies the desired flight distance at the position found by find_ori(),
         taking the pitch into account
@@ -620,7 +618,6 @@ class DroneOri(object):
                                 direction
             footp_i_start   [int] index of the beginning of the footprint
             footp_i_end     [int] index of the end of the footprint
-            locked          [bool] same as the input
         
         Output:
             index           [int] same as the input
@@ -637,7 +634,6 @@ class DroneOri(object):
             drone_az        [bool] same as the input
             footp_i_start   [int] same as the input
             footp_i_end     [int] same as the input
-            locked          [bool] same as the input
         """
         
         e = self._profile[index]['e']
@@ -697,32 +693,47 @@ class DroneOri(object):
                 'drone_az':         drone_az,
                 'footp_i_start':    footp_i_start,
                 'footp_i_end':      footp_i_end,
-                'locked':           locked
             }
     
-    def add_ori(self, index, locked=False):
+    def add_ori(self, index):
         """
         Adds an orientation along the profile, at the given index
         
         Input:
             index           [int] profile index where to add the orientation
-            locked          [bool] wether the index of this orientation can be
-                                shifted or not
         
         Output:
             ori_w_pitch     [dict] new orientation
         """
         
-        ori = self.find_ori(index, locked=locked)
+        ori = self.find_ori(index)
         ori_w_pitch = self.apply_height(
                 ori['index'],
                 ori['pitch'],
                 ori['drone_az'],
                 ori['footp_i_start'],
-                ori['footp_i_end'],
-                ori['locked']
+                ori['footp_i_end']
             )
         return ori_w_pitch
+    
+    def remove_ori(self, index):
+        """
+        Removes an orientation
+        
+        Input:
+            index           [int] profile index
+        """
+        
+        if index in self._drone_ori:
+            self._drone_ori.pop(index)
+        if index in self._ovlp_linreg_x:
+            self._ovlp_linreg_x.pop(index)
+        if index in self._ovlp_linreg_z:
+            self._ovlp_linreg_z.pop(index)
+        if index in self._ovlp_linreg_stats:
+            self._ovlp_linreg_stats.pop(index)
+        if index in self._final_overlap:
+            self._final_overlap.pop(index)
     
     def estim_overlp(self, index1, index2):
         """
@@ -742,6 +753,9 @@ class DroneOri(object):
         
         o1 = self._drone_ori[index1]
         o2 = self._drone_ori[index2]
+        
+        if o1['footp_i_end'] < o2['footp_i_start']: # If no overlap
+            return 0.
         
         profile_elev = [v['z'] for v in self._profile]
         
@@ -777,21 +791,26 @@ class DroneOri(object):
         
         
     
-    def insert_ori(self, index1, index2):
+    def insert_ori(self, index1, index2, round_mode):
         """
         Inserts an orientation between two orientations
         
         Input:
             index1          [int] profile index of the first orientation
             index2          [int] profile index of the second orientation
+            round_mode      ['floor', 'ceil'] round mode
         
         Output:
             new_ori_w_pitch [dict] new orientation
         """
         
-        o1 = self._drone_ori[index1]
-        o2 = self._drone_ori[index2]
-        new_ori_index = int(o1['index'] + (o2['index'] - o1['index']) / 2)
+        new_ori_index = index1 + (index2 - index1) / 2
+        if round_mode == 'floor':
+            new_ori_index = floor(new_ori_index)
+        elif round_mode == 'ceil':
+            new_ori_index = ceil(new_ori_index)
+        else:
+            sys.exit('Error')
         return self.add_ori(new_ori_index)
     
     def drone_orientations(self):
@@ -810,84 +829,121 @@ class DroneOri(object):
         self._ovlp_linreg_stats = {}
         self._final_overlap = {}
         
-        # Initialization with the first and last points of the profile
-        # Start of profile
+        # First orientation, at the start of the profile
         index = self._dsm_profile_margin
-        ori_start = self.add_ori(index, locked=True)
-        self._drone_ori[ori_start['index']] = ori_start
+        o_start = self.add_ori(index)
+        self._drone_ori[o_start['index']] = o_start
         
-        # End of profile
-        index = len(self._profile)-self._dsm_profile_margin
-        ori_end = self.add_ori(index, locked=True)
-        self._drone_ori[ori_end['index']] = ori_end
+        # Last orientation, at the end of the profile
+        index = len(self._profile) - self._dsm_profile_margin
+        o_end = self.add_ori(index)
+        self._drone_ori[o_end['index']] = o_end
         
         drone_ori_by_keys = sorted(list(self._drone_ori.keys()))
         
-        # Add orientations until the required overlap and B/H ratios are
-        # satisfied
+        # Add orientations along the profile
+        o_new = None
         while True:
-            i = 0
-            new_drone_ori = {}
-            while i < len(self._drone_ori)-1:
-                o1 = self._drone_ori[drone_ori_by_keys[i]]
-                o2 = self._drone_ori[drone_ori_by_keys[i+1]]
-                index1 = o1['index']
-                index2 = o2['index']
-                
-                if o1['footp_i_end'] < o2['footp_i_start']: # If o1 and o2
-                                                            # footprints do not
-                                                            # intersect
-                    # Add an orientation between them
-                    new_ori = self.insert_ori(index1, index2)
-                    new_drone_ori[new_ori['index']] = new_ori
-                else: # If o1 and o2 do intersect, make extra tests
-                    # Check the overlap ratio
-                    overlap = self.estim_overlp(index1, index2)
-                    self._final_overlap[index2] = round(overlap, 2)
-                    if overlap < self._ovlp: # If not enough overlap
-                        # If not locked, reduce the index to increase overlap,
-                        # then run the loop again, without adding any other
-                        # orientations
-                        if not o2['locked']:
-                            # Remove o2
-                            self._drone_ori.pop(index2)
-                            self._ovlp_linreg_x.pop(index2)
-                            self._ovlp_linreg_z.pop(index2)
-                            self._ovlp_linreg_stats.pop(index2)
-                            self._final_overlap.pop(index2)
-                            
-                            drone_ori_by_keys = sorted(list( # Update the list
-                                self._drone_ori.keys()))
-                            new_o2 = self.add_ori(index2-1) # VERY COSTLY! Maybe
-                                                            # adding one between
-                                                            # o1 and o2 would be
-                                                            # better
-                            new_drone_ori[new_o2['index']] = new_o2
-                            break
-                        else: # If locked
-                            # Add an orientation between them
-                            new_ori = self.insert_ori(index1, index2)
-                            new_drone_ori[new_ori['index']] = new_ori
-                    
-                    # Check the B/H ratio
-                    # To be done, if needed
-                
-                i += 1
+            if not o_new:
+                o_ref = o_start
+            else:
+                o_ref = o_new
             
-            # Check for duplicated keys
-            new_drone_ori_by_keys = list(new_drone_ori.keys())
-            for k in new_drone_ori_by_keys:
-                if k in drone_ori_by_keys:
-                    print(
-                        "Warning: duplicated key {} in new_drone_ori".format(k))
+            index_ref = o_ref['index']
+            index_end = drone_ori_by_keys[-1]
             
-            # If no new orientation were added in this loop, break
-            if not new_drone_ori:
+            # Exit condition
+            if self.estim_overlp(index_ref, index_end) > self._ovlp:
                 break
             
-            self._drone_ori.update(new_drone_ori)
+            o_new = self.insert_ori(index_ref, index_end, 'floor') # Start with
+                # an ori between ref and end
+            index_new = o_new['index']
+            self._drone_ori[index_new] = o_new
+            
+            # While o_ref and o_new footprints don't have the desired overlap
+            # ratio
+            overlap = self.estim_overlp(index_ref, index_new)
+            ovlp_tolerance = 1.01 # 1 % tolerance
+            index_min = index_ref
+            index_max = index_new
+            to_remove = []
+            while overlap < self._ovlp or overlap > self._ovlp * ovlp_tolerance:
+                if overlap < self._ovlp:
+                    to_remove.append(index_new)
+                    
+                    if index_max - index_min in [0,1]: # Exit condition
+                        if self.estim_overlp(index_ref, index_max) > \
+                                self._ovlp  * ovlp_tolerance:
+                            o_new = self.add_ori(index_max)
+                        else:
+                            o_new = self.add_ori(index_min)
+                        
+                        # Update
+                        index_new = o_new['index']
+                        self._drone_ori[index_new] = o_new
+                        
+                        overlap = self.estim_overlp(index_ref, index_new)
+                        
+                        if index_new in to_remove:
+                            to_remove.remove(index_new)
+                        
+                        break
+                    
+                    index_prev_max = index_max # Save present max boundary
+                    
+                    o_new = self.insert_ori(index_min, index_max, 'ceil')
+                    
+                    # Update
+                    index_new = o_new['index']
+                    self._drone_ori[index_new] = o_new
+                    
+                    overlap = self.estim_overlp(index_ref, index_new)
+                    
+                    if overlap < self._ovlp: # Next loop w/ same "if"
+                        index_max = index_new
+                    elif overlap > self._ovlp * ovlp_tolerance: # Next loop w/
+                                                                # other "if"
+                        index_min = index_new
+                elif overlap > self._ovlp * ovlp_tolerance:
+                    to_remove.append(index_new)
+                    
+                    if index_max - index_min in [0,1]: # Exit condition
+                        if self.estim_overlp(index_ref, index_max) > \
+                                self._ovlp  * ovlp_tolerance:
+                            o_new = self.add_ori(index_max)
+                        else:
+                            o_new = self.add_ori(index_min)
+                        
+                        # Update
+                        index_new = o_new['index']
+                        self._drone_ori[index_new] = o_new
+                        
+                        overlap = self.estim_overlp(index_ref, index_new)
+                        
+                        if index_new in to_remove:
+                            to_remove.remove(index_new)
+                        
+                        break
+                    
+                    o_new = self.insert_ori(index_min, index_max, 'floor')
+                    
+                    # Update
+                    index_new = o_new['index']
+                    self._drone_ori[index_new] = o_new
+                    
+                    overlap = self.estim_overlp(index_ref, index_new)
+                    
+                    if overlap < self._ovlp: # Next loop w/ other "if"
+                        index_max = index_new
+                    elif overlap > self._ovlp * ovlp_tolerance:  # Next loop w/
+                                                                 # same "if"
+                        index_min = index_new
+            for index in to_remove:
+                self.remove_ori(index)
+            
             drone_ori_by_keys = sorted(list(self._drone_ori.keys()))
-        
+    
     def draw_orientations(self, disp_drone_pos=True, disp_footp=False,
             disp_fov=True, disp_linereg=False, print_pitch=False,
             print_ovlp=False, print_linereg=False):
