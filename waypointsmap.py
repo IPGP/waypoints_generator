@@ -186,9 +186,9 @@ class WaypointMap:
 
     def export_to_file(self, filename):
         """Export waypoint map to file"""
-        filename += '.html'
+   
         #print('{} waypoint exportés'.format(self.waypoint_nb))
 
         self.the_map.fit_bounds(self.the_map.get_bounds(), padding=(5, 5))
         folium.LayerControl(sortLayers=True).add_to(self.the_map)
-        self.the_map.save(filename)
+        self.the_map.save(str(filename))

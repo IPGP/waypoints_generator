@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*-
 import os
 import sys
+from pathlib import Path
 from collections import deque
 from itertools import cycle
 import time
@@ -161,7 +162,7 @@ class PathPlanning:
         print(F'Min Turns : Angle {best_angle_nb_turns} \
                 distance {best_nb_turns_distance} nb_turns {best_nb_turns}')
         print('#######################')
-        
+
         # To plot angle / distance / turns
         # import matplotlib.pyplot as plt
         # fig, ax = plt.subplots()
@@ -405,11 +406,12 @@ def main():
                             default='sapine.ini', type=str, required=True)
     args = arg_parser.parse_args()
 
-    # parameters from INI file
-    parser = configparser.ConfigParser()
 
     if args.config_file and os.path.isfile(args.config_file):
+        # parameters from INI file
+        parser = configparser.ConfigParser()
         parser.read(args.config_file)
+        output_dir =  Path(os.path.dirname(os.path.abspath(args.config_file)))
     else:
         print(F'{args.config_file} does not exist or wrong path')
         sys.exit(-1)
@@ -573,7 +575,7 @@ def main():
 
     ################### kml from profils ##########################
     #from IPython import embed; embed()
-    wp_extras = dict2djikml(final_waypoint_dict, project_name+'.kml', reverse_coordonates_transformer,
+    wp_extras = dict2djikml(final_waypoint_dict, output_dir.joinpath(project_name+'_for_PILOT.kml'), reverse_coordonates_transformer,
                             altitude=prof1.ref_alti, onfinish=onfinish, speed=drone_speed)
     # tmp_wp=wp_extras[0]
     # print('######################@')
@@ -610,7 +612,7 @@ def main():
         the_map.add_extra(extra, text=extra.text, alt=extra.altitude_relative_drone)
 
     # Export html map
-    the_map.export_to_file(project_name)
+    the_map.export_to_file(output_dir.joinpath(project_name+'.html'))
 
 
 if __name__ == '__main__':
