@@ -4,7 +4,8 @@ from waypoint import WayPoint
 
 
 def dict2djikml (dic,output_filename,reverse_coordonates_transformer,
-                 altitude,onfinish='hover',speed = 5,turnmode = 'Auto'):
+                 altitude,onfinish='hover',speed = 5,turnmode = 'Auto',
+                 over_time_before_picture=0):
     extra_points=[]
 
     if onfinish == 'hover':
@@ -80,11 +81,12 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,
             </Point>
           </Placemark>""")
     hover_template = Template("""
-              <mis:actions param="$length" accuracy="0" cameraIndex="0" payloadType="0" payloadIndex="0">Hovering</mis:actions>""")
+              <mis:actions param="$over_time_before_picture" accuracy="0" cameraIndex="0" payloadType="0" payloadIndex="0">Hovering</mis:actions>""")
     shoot_template = Template("""
               <mis:actions param="0" accuracy="0" cameraIndex="0" payloadType="0" payloadIndex="0">ShootPhoto</mis:actions>""")
 
-    shoot_str = '<mis:actions param="0" accuracy="0" cameraIndex="0" payloadType="0" payloadIndex="0">ShootPhoto</mis:actions>'
+    shoot_str = """
+              <mis:actions param="0" accuracy="0" cameraIndex="0" payloadType="0" payloadIndex="0">ShootPhoto</mis:actions>"""
 
     gimbal_template = Template("""
               <mis:actions param="$gimbal_angle" accuracy="1" cameraIndex="0" payloadType="0" payloadIndex="0">GimbalPitch</mis:actions>""")
@@ -176,6 +178,8 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,
         XML_string += waypoint_start.substitute(
             turnmode=turnmode, waypoint_number=waypoint_nb,
              speed=speed, heading=heading, gimbal=gimbal)
+        if over_time_before_picture > 0:
+          XML_string +=  hover_template.substitute(over_time_before_picture=over_time_before_picture)
         XML_string += shoot_str
         XML_string += waypoint_end.substitute(lon=lon, lat=lat, height=height,)+"\n"
 

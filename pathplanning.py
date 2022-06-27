@@ -449,6 +449,7 @@ def main():
     id_camera = parser.get("drone_parameters", "id_camera")
     drones_camera_db = Drones()
     camera = drones_camera_db.get_camera_by_id(id_camera)
+    over_time_before_picture = int(parser.get("drone_parameters", "over_time_before_picture"))
 
     if 'fixed_pitch' in parser['drone_parameters']:
         fixed_pitch = int(parser.get("drone_parameters", "fixed_pitch"))
@@ -576,7 +577,7 @@ def main():
     ################### kml from profils ##########################
     #from IPython import embed; embed()
     wp_extras = dict2djikml(final_waypoint_dict, output_dir.joinpath(project_name+'_for_PILOT.kml'), reverse_coordonates_transformer,
-                            altitude=prof1.ref_alti, onfinish=onfinish, speed=drone_speed)
+                            altitude=prof1.ref_alti, onfinish=onfinish, speed=drone_speed, over_time_before_picture=over_time_before_picture)
     # tmp_wp=wp_extras[0]
     # print('######################@')
     # print('distances entre chaque WP consécutifs')
