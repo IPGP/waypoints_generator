@@ -84,6 +84,8 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,
     shoot_template = Template("""
               <mis:actions param="0" accuracy="0" cameraIndex="0" payloadType="0" payloadIndex="0">ShootPhoto</mis:actions>""")
 
+    shoot_str = '<mis:actions param="0" accuracy="0" cameraIndex="0" payloadType="0" payloadIndex="0">ShootPhoto</mis:actions>'
+
     gimbal_template = Template("""
               <mis:actions param="$gimbal_angle" accuracy="1" cameraIndex="0" payloadType="0" payloadIndex="0">GimbalPitch</mis:actions>""")
     aircraftyaw_template = Template("""
@@ -174,9 +176,8 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,
         XML_string += waypoint_start.substitute(
             turnmode=turnmode, waypoint_number=waypoint_nb,
              speed=speed, heading=heading, gimbal=gimbal)
-        action_list = 'SHOOT'
-        XML_string += "\n" + \
-            waypoint_end.substitute(lon=lon, lat=lat, height=height,)+"\n"
+        XML_string += shoot_str
+        XML_string += waypoint_end.substitute(lon=lon, lat=lat, height=height,)+"\n"
 
         all_coordinates += all_coordinates_template.substitute(
             lon=lon, lat=lat, height=height)+" "
