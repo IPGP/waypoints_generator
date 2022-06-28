@@ -153,7 +153,7 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,
         # 'drone_pitch': -75.0,
         # 'drone_fov_lat': 52.17119955656284,
         # 'drone_fov_lon': 36.22411610965541,
-        # 'drone_az': False}
+        # 'drone_az': -45}
 
 
         name = 'WP_'+str(waypoint_nb)
@@ -161,10 +161,8 @@ def dict2djikml (dic,output_filename,reverse_coordonates_transformer,
         tmp_extra_point= WayPoint(lat, lon,wp_text=name,alt=str(waypoint['drone_z']))
         extra_points.append(tmp_extra_point)
         height = waypoint['drone_z']
-        if waypoint['drone_az']:
-            heading = 0
-        else:
-            heading = 180
+        
+        heading = waypoint['drone_az']
 
         gimbal = waypoint['drone_pitch']
 
