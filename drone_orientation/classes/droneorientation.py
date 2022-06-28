@@ -1342,7 +1342,7 @@ class DroneOri(object):
             o = self._drone_ori[ori]
             
             drone_az = degrees(self._prof_az) if o['drone_az'] else \
-                -degrees(self._prof_az),
+                -degrees(self._prof_az)
             
             export.append({
                     'path_name':        self._name,
