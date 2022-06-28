@@ -1334,15 +1334,16 @@ class DroneOri(object):
             - drone_pitch:          drone gimbal pitch angle (in deg)
             - drone_fov_lat, _lon:  camera field of view in the longitudinal and
                                         lateral directions (in deg)
-            - drone_az:             drone azimuth;
-                                        True  = same direction as the profile;
-                                        False = direction opposite to the
-                                        profile direction
+            - drone_az:             acquisition azimuth (in deg)
         """
         
         export = []
         for ori in self._drone_ori:
             o = self._drone_ori[ori]
+            
+            drone_az = degrees(self._prof_az) if o['drone_az'] else \
+                -degrees(self._prof_az),
+            
             export.append({
                     'path_name':        self._name,
                     'path_az':          degrees(self._prof_az),
@@ -1352,7 +1353,7 @@ class DroneOri(object):
                     'drone_pitch':      degrees(o['pitch']),
                     'drone_fov_lat':    degrees(self._fov_lat),
                     'drone_fov_lon':    degrees(self._fov_lon),
-                    'drone_az':         o['drone_az'],
+                    'drone_az':         drone_az,
                     'index_abv':        o['index_abv']
                 })
         export = sorted(export, key=lambda e: e['index_abv'])
